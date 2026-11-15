@@ -22,6 +22,7 @@ Hedef:
 from __future__ import annotations
 
 import argparse
+import re
 import json
 import random
 import subprocess
@@ -63,6 +64,25 @@ QUOTES = [
     "Çocukluk, insanın ömür boyu geri dönmeye çalıştığı bir başkenttir.",
     "Ağlamak da bir anlatma biçimidir; kelimeler yetmediğinde gözyaşı konuşur.",
     "Sınır koymak, kapıyı kapatmak değil; kimin hangi odaya gireceğine karar vermektir.",
+]
+TOPIC_QUOTES = [
+    "Eşitlik talebi, herkesin payına düşeni gerçekten bilmesiyle başlar.",
+    "Emek olmadan hiçbir bina ayağa kalkmaz; ama binanın sahibi çoğu zaman inşa edenler değildir.",
+    "Dayanışma, kalabalığın değil, birbirini tanıyan insanların işidir.",
+    "Bir sistemi eleştirmek kolaydır; zor olan, onun yerine neyin geleceğini sabırla konuşmaktır.",
+    "Sınıf dediğimiz şey çoğu zaman bir kimlik kartından çok, hayatın nereden başladığıdır.",
+    "Tarih, kazananların anlattığı kadar kaybedenlerin sustuğu yerlerde de yazılır.",
+    "Adalet kelimesi kolay söylenir; onu kurmak için fabrikada, tarlada ve sokakta birlikte durmak gerekir.",
+    "Mülkiyetin kimin elinde olduğu sorusu, özgürlüğün kimin için olduğu sorusuyla birlikte sorulmalı.",
+    "Bir grev, bazen bir ücret talebinden çok, insanın görünür olmak isteğidir.",
+    "Ortak olan bir şeyi korumak, onu sahiplenmekten daha çok özen ister.",
+    "Bütün umutlar bir gün gerçekleşmez; ama umut etmeyi bırakan toplum, kendini yönetme hakkını da bırakır.",
+    "Özgürlük, yalnızca seçim yapabilmek değil; seçeneklerin herkese açık olmasıdır.",
+    "Kolektif hafıza, tek bir kişinin hatırladıklarından daha dayanıklıdır.",
+    "Yoksulluk bir karakter kusuru değil, bir düzenin sonucudur; bunu söylemek bile çoğu zaman tartışmaya yol açar.",
+    "İnsanlar dayanışmayı öğrenir; çünkü yalnız başına karşı koymanın ne kadar zor olduğunu bilirler.",
+    "Bir fikrin gücü, onu kimin taşıdığından çok, kimlere ulaştığında ortaya çıkar.",
+    "Eşit olmayan bir dünyada, sessiz kalmak da bir tarafı seçmek anlamına gelir.",
 ]
 REVIEW_OPEN = ["{t} beni beklemediğim yerden yakaladı.", "{t}, uzun süredir okuduğum en dolu kitaplardan biri.",
                "{t} hakkında karışık duygularım var.", "{t} ile ilgili beklentim yüksekti; büyük ölçüde karşıladı.",
@@ -117,14 +137,32 @@ class Cloud:
         return f"https://{REF}.supabase.co", next(k["api_key"] for k in keys if k["name"] == "service_role")
 
 
+TR_MAP = str.maketrans("çğıöşüâîûÇĞİÖŞÜÂÎÛ", "cgiosuaiuCGIOSUAIU")
+
+
+def slug(s: str) -> str:
+    """Kullanıcı adı için ASCII: Türkçe harfler sadeleşir, harf ve rakam dışı karakter kalmaz."""
+    return re.sub(r"[^a-z0-9]", "", s.translate(TR_MAP).lower())[:12]
+
+
+def delete_auth_users(api_url: str, key: str, users: list[tuple[str, str]]) -> None:
+    for uid, _ in users:
+        req = urllib.request.Request(f"{api_url}/auth/v1/admin/users/{uid}", method="DELETE",
+                                     headers={"apikey": key, "authorization": f"Bearer {key}"})
+        try:
+            urllib.request.urlopen(req, timeout=60).read()
+        except urllib.error.HTTPError:
+            pass
+
+
 def lit(s: str) -> str:
     return "'" + s.replace("'", "''") + "'"
 
 
-def create_auth_users(api_url: str, key: str, n: int) -> list[tuple[str, str]]:
+def create_auth_users(api_url: str, key: str, n: int, tag: str = "") -> list[tuple[str, str]]:
     users = []
     for i in range(1, n + 1):
-        email = f"demo-{i:02d}@{DEMO_DOMAIN}"
+        email = f"demo-{tag}{i:02d}@{DEMO_DOMAIN}"
         body = {"email": email, "email_confirm": True, "app_metadata": {"demo": True}, "user_metadata": {"demo": True}}
         req = urllib.request.Request(f"{api_url}/auth/v1/admin/users", data=json.dumps(body).encode(), method="POST",
                                      headers={"content-type": "application/json", "apikey": key, "authorization": f"Bearer {key}"})
@@ -136,17 +174,19 @@ def create_auth_users(api_url: str, key: str, n: int) -> list[tuple[str, str]]:
     return users
 
 
-def build_sql(users: list[tuple[str, str]], books: list[str], follow_user: str | None, rnd: random.Random) -> str:
+def build_sql(users: list[tuple[str, str]], books: list[str], follow_user: str | None, rnd: random.Random,
+              tag: str = "", quotes_pool: list[str] | None = None) -> str:
+    quotes_pool = quotes_pool or QUOTES
     out = ["begin;"]
     names = rnd.sample([(f, l) for f in FIRST for l in LAST], len(users))
     for (uid, _), (first, last), i in zip(users, names, range(1, len(users) + 1)):
-        uname = f"demo_{(first[0] + last).lower().translate(str.maketrans('çğıöşüİâ', 'cgiosuia'))}{i:02d}"
+        uname = f"demo_{tag}{slug(first + last)}{i:02d}"
         out.append(f"update public.profiles set username={lit(uname)}, display_name={lit(first + ' ' + last[0] + '.')}, "
                    f"bio={lit('Demo hesap · ' + rnd.choice(BIOS))}, onboarded_at=now() - interval '{rnd.randint(20, 40)} days' "
                    f"where id='{uid}';")
     quote_ids, review_ids = [], []
     for uid, _ in users:
-        mine = rnd.sample(books, rnd.randint(3, 6))
+        mine = rnd.sample(books, min(len(books), rnd.randint(3, 6)))
         reviewed = set()
         for j, mid in enumerate(mine):
             status = rnd.choice(["completed", "completed", "in_progress", "planned"])
@@ -163,7 +203,7 @@ def build_sql(users: list[tuple[str, str]], books: list[str], follow_user: str |
         for mid in rnd.sample(mine, min(len(mine), rnd.randint(1, 3))):
             qid = str(uuid.uuid4()); quote_ids.append((qid, uid))
             out.append(f"insert into public.quotes (id, user_id, media_id, body, page_number, created_at) values ('{qid}', '{uid}', "
-                       f"'{mid}', {lit(rnd.choice(QUOTES))}, {rnd.randint(9, 340)}, now() - interval '{rnd.randint(0, 21)} days {rnd.randint(0, 23)} hours');")
+                       f"'{mid}', {lit(rnd.choice(quotes_pool))}, {rnd.randint(9, 340)}, now() - interval '{rnd.randint(0, 21)} days {rnd.randint(0, 23)} hours');")
     ids = [u for u, _ in users]
     for uid in ids:
         for other in rnd.sample([x for x in ids if x != uid], rnd.randint(4, 10)):
@@ -197,7 +237,9 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="BOOKFLIX demo kullanıcıları")
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--create", action="store_true"); g.add_argument("--remove", action="store_true"); g.add_argument("--status", action="store_true")
-    ap.add_argument("--count", type=int, default=50)
+    ap.add_argument("--count", type=int, default=None, help="Varsayılan 50; --topic ile 30")
+    ap.add_argument("--topic", action="store_true", help="Yalnızca sosyalizm/komünizm temalı kitaplar ve bu konuya uygun alıntılar")
+    ap.add_argument("--append", action="store_true", help="Mevcut demo kullanıcıları silinmeden yenilerini ekle")
     ap.add_argument("--follow-user", help="Bu kullanıcı adı 12 demo kullanıcıyı takip etsin (ana sayfada görünsünler)")
     ap.add_argument("--target", choices=["cloud", "local"], default="cloud")
     ap.add_argument("--seed", type=int, default=2026)
@@ -214,15 +256,30 @@ def main() -> int:
     if a.remove:
         print("silinen demo kullanıcı:", t.sql(f"with d as (delete from auth.users where {demo_where} returning 1) select count(*) from d"))
         print("kalan:", t.sql(status_sql)); return 0
-    if t.sql(f"select count(*) from auth.users where {demo_where}").strip() not in ("0", ""):
-        raise SystemExit("Demo kullanıcılar zaten var. Önce --remove çalıştır.")
-    books = [x for x in t.sql("select id from public.media_items where kind = 'book'").split() if x]
-    if len(books) < 6:
+    tag, quotes_pool = "", None
+    if a.topic:
+        tag, quotes_pool = "s", TOPIC_QUOTES
+        books = [x for x in t.sql(
+            "select id from public.media_items where kind = 'book' and (title ~* '(sosyal|komün|komun|marks|devrim|işçi|emek|sınıf|kapitalizm|proletar|lenin|troçki|mao|kooperatif|kolektif)' "
+            "or description ~* '(sosyalizm|komünizm|marksizm|işçi sınıfı|proletarya|sınıf mücadele|kapitalizm)')").split() if x]
+        if not books:
+            raise SystemExit("Konuyla ilgili kitap bulunamadı.")
+        print(f"konu kitapları: {len(books)} kitap")
+    else:
+        books = [x for x in t.sql("select id from public.media_items where kind = 'book'").split() if x]
+    count = a.count or (30 if a.topic else 50)
+    if not a.append and t.sql(f"select count(*) from auth.users where {demo_where}").strip() not in ("0", ""):
+        raise SystemExit("Demo kullanıcılar zaten var. Eklemek için --append, sıfırdan için önce --remove kullan.")
+    if len(books) < (1 if a.topic else 6):
         raise SystemExit("Katalogda yeterli kitap yok.")
     api_url, key = t.admin()
-    users = create_auth_users(api_url, key, a.count)
+    users = create_auth_users(api_url, key, count, tag)
     print(f"{len(users)} demo kullanıcı oluşturuldu; içerik ekleniyor…")
-    t.sql(build_sql(users, books, a.follow_user, random.Random(a.seed)))
+    try:
+        t.sql(build_sql(users, books, a.follow_user, random.Random(a.seed + (7 if a.topic else 0)), tag, quotes_pool))
+    except SystemExit:
+        delete_auth_users(api_url, key, users)  # yarım kalan hesapları bırakma
+        raise
     print("kullanıcı / alıntı / inceleme / beğeni / takip:", t.sql(status_sql))
     return 0
 

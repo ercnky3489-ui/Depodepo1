@@ -92,6 +92,7 @@ FUNCTIONS_API=http://127.0.0.1:54330 npm run web:preview      # http://localhost
 
 ```bash
 python tools/demo_users.py --create --follow-user <kullanıcı-adın>   # 50 demo kullanıcı, alıntı, inceleme, beğeni, takip
+python tools/demo_users.py --create --topic --append --follow-user <kullanıcı-adın>   # sosyalizm/komünizm kitaplarına 30 demo hesap ekler
 python tools/demo_users.py --status
 python tools/demo_users.py --remove                                  # hepsini ve içeriklerini siler
 ```
