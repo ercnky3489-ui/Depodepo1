@@ -15,3 +15,6 @@ data/*/covers/
 
 # Claude Code kişisel ayarları
 .claude/settings.local.json
+
+# Web derlemesindeki yazı tipi ve görseller (docs/assets/node_modules/...) yayınlanmalı
+!docs/assets/node_modules/
