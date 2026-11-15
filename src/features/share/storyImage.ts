@@ -127,8 +127,8 @@ export async function renderQuoteStory(q: QuoteStory): Promise<Blob> {
   drawArcLogo(ctx, W / 2, 1150, 820);
 
   // Alıntı: kutuya sığacak en büyük yazı boyutu
-  const boxTop = 470;
-  const boxBottom = 1330;
+  const boxTop = 460;
+  const boxBottom = 1230;
   const maxW = 860;
   let size = 76;
   let lines: string[] = [];
@@ -184,25 +184,35 @@ export async function renderQuoteStory(q: QuoteStory): Promise<Blob> {
     ctx.fillText(meta, W / 2, sy + 10);
   }
 
-  // Alt bilgi: paylaşan + adres
-  const fy = H - 330;
-  if (q.sharedBy || q.username) {
-    ctx.font = `34px ${SANS}`;
-    ctx.fillStyle = MUTED;
-    ctx.fillText(`${q.sharedBy ?? ''}${q.username ? `  @${q.username}` : ''}`.trim(), W / 2, fy);
-  }
-  const pill = q.siteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
-  ctx.font = `32px ${SANS}`;
-  const pw = ctx.measureText(pill).width + 80;
-  ctx.fillStyle = 'rgba(0,229,160,0.10)';
-  ctx.strokeStyle = 'rgba(0,229,160,0.55)';
+  // Sağ alt: "Yakında App Store'da" rozeti (Instagram'ın alt mesaj çubuğunun üstünde kalır).
+  ctx.textAlign = 'left';
+  ctx.font = `24px ${SANS}`;
+  const small = 'YAKINDA';
+  ctx.font = `38px ${SANS_BOLD}`;
+  const big = "App Store'da";
+  const bw = Math.max(ctx.measureText(big).width, 0) + 72;
+  const bh = 116;
+  const bx = W - 72 - bw;
+  const by = H - 256 - bh;
+  ctx.fillStyle = 'rgba(8,11,10,0.82)';
+  ctx.strokeStyle = 'rgba(0,229,160,0.6)';
   ctx.lineWidth = 2;
+  ctx.shadowColor = 'rgba(0,229,160,0.35)';
+  ctx.shadowBlur = 24;
   ctx.beginPath();
-  ctx.roundRect(W / 2 - pw / 2, fy + 34, pw, 70, 35);
+  ctx.roundRect(bx, by, bw, bh, 26);
   ctx.fill();
+  ctx.shadowBlur = 0;
   ctx.stroke();
+  ctx.font = `24px ${SANS}`;
   ctx.fillStyle = NEON;
-  ctx.fillText(pill, W / 2, fy + 81);
+  ctx.letterSpacing = '4px';
+  ctx.fillText(small, bx + 36, by + 44);
+  ctx.letterSpacing = '0px';
+  ctx.font = `38px ${SANS_BOLD}`;
+  ctx.fillStyle = TEXT;
+  ctx.fillText(big, bx + 36, by + 92);
+  ctx.textAlign = 'center';
 
   return await new Promise<Blob>((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('Görsel oluşturulamadı'))), 'image/png'));
 }
