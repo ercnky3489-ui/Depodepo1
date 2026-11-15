@@ -23,7 +23,10 @@ export const supabase = createClient(url, anonKey, {
     persistSession: true,
     // Web'de e-postadaki giriş bağlantısı siteye ?code= ile döner; oturum adresten alınır.
     detectSessionInUrl: Platform.OS === 'web',
-    flowType: 'pkce',
+    // Web'de e-postadaki bağlantı çoğu zaman başka bir tarayıcıda (Mail uygulamasının açtığı) açılır;
+    // PKCE isteği yapan tarayıcıyı şart koştuğu için web'de implicit akış kullanılır: bağlantı hangi
+    // tarayıcıda açılırsa oturum orada açılır. Mobil uygulama PKCE ile devam eder.
+    flowType: Platform.OS === 'web' ? 'implicit' : 'pkce',
   },
 });
 

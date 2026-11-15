@@ -40,7 +40,7 @@ export default function EmailSignIn() {
         <T v="body" c={color.textMuted} style={{ marginTop: space[2] }}>
           {sent
             ? Platform.OS === 'web'
-              ? `${email} adresine bir e-posta gönderdik. İçindeki bağlantıya bu tarayıcıda dokun; 6 haneli kod varsa aşağıya da yazabilirsin.`
+              ? `${email} adresine bir e-posta gönderdik. İçindeki "Sign in" bağlantısına dokun, BOOKFLIX giriş yapılmış olarak açılır. Bu sayfayı kapatabilirsin. E-postada 6 haneli kod varsa aşağıya da yazabilirsin.`
               : `${email} adresine 6 haneli bir kod gönderdik.`
             : 'Şifre yok: adresine tek kullanımlık bir giriş e-postası göndereceğiz.'}
         </T>
@@ -56,9 +56,9 @@ export default function EmailSignIn() {
           )}
           {error ? <T v="caption" c={color.danger}>{error}</T> : null}
           {!sent
-            ? <Button title="Kod gönder" onPress={send} disabled={!validEmail} loading={busy} />
+            ? <Button title={Platform.OS === 'web' ? 'Giriş bağlantısı gönder' : 'Kod gönder'} onPress={send} disabled={!validEmail} loading={busy} />
             : <Button title="Giriş yap" onPress={verify} disabled={code.length !== 6} loading={busy} />}
-          {sent ? <Button title="Yeni kod gönder" kind="ghost" onPress={send} /> : null}
+          {sent ? <Button title={Platform.OS === 'web' ? 'E-postayı yeniden gönder' : 'Yeni kod gönder'} kind="ghost" onPress={send} /> : null}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
