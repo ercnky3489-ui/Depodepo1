@@ -226,7 +226,7 @@ function DetailsTab({ m }: { m: MediaDetail }) {
             <Overline>Sezonlar ve bölümler</Overline>
             <T v="caption" c={color.textMuted}>Uzun bas: buraya kadar</T>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space[2], marginTop: space[3] }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: space[2], marginTop: space[3] }}>
             {seasons.data.map((s) => {
               const on = s.season_number === currentSeason?.season_number;
               const done = s.episodes.filter((e) => e.watched).length;

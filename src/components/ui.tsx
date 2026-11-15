@@ -74,7 +74,8 @@ export function ChipRow<T extends string>({ items, value, onChange, counts }: {
   items: readonly { id: T; label: string }[]; value: T; onChange: (v: T) => void; counts?: Partial<Record<T, number>>;
 }) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space[2], paddingHorizontal: space[4], paddingVertical: space[2] }}>
+    // flexGrow 0: web'de yatay ScrollView sütundaki boş alanı doldurup altındaki listeyi aşağı itmesin
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: space[2], paddingHorizontal: space[4], paddingVertical: space[2] }}>
       {items.map((it) => {
         const on = it.id === value;
         return (
