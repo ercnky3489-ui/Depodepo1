@@ -69,21 +69,33 @@ export default function MediaDetailScreen() {
     });
   };
 
+  const isBook = m.kind === 'book';
+  // Kitap adı "Ad: Alt başlık" biçimindeyse alt başlık ayrı ve küçük gösterilir.
+  const colon = isBook ? m.title.indexOf(': ') : -1;
+  const mainTitle = colon > 0 ? m.title.slice(0, colon) : m.title;
+  const subTitle = colon > 0 ? m.title.slice(colon + 2) : null;
+
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
         <View style={{ height: 480, backgroundColor: '#0D1830' }}>
-          {hero ? <Image source={{ uri: hero }} style={StyleSheet.absoluteFill} contentFit="cover" transition={250} accessibilityIgnoresInvertColors /> : null}
-          <LinearGradient colors={['rgba(8,11,10,0)', color.bg]} locations={[0, 0.92]} style={[StyleSheet.absoluteFill, { top: 220 }]} />
+          {hero ? <Image source={{ uri: hero }} style={[StyleSheet.absoluteFill, isBook && { opacity: 0.35 }]} contentFit="cover" transition={250}
+            blurRadius={isBook ? 40 : 0} accessibilityIgnoresInvertColors /> : null}
+          <LinearGradient colors={['rgba(8,11,10,0)', color.bg]} locations={[0, 0.92]} style={[StyleSheet.absoluteFill, { top: isBook ? 0 : 220 }]} />
           <View style={{ position: 'absolute', top: insets.top + 8, left: 12, right: 12, flexDirection: 'row', justifyContent: 'space-between' }}>
             <Glass label="Geri" onPress={() => router.back()}><IconBack /></Glass>
             <Glass label="Paylaş" onPress={() => Share.share({ message: `${m.title} · BOOKFLIX: bookflix://media/${m.id}` })}><IconShare c={color.text} /></Glass>
           </View>
           <View style={{ position: 'absolute', left: 20, right: 20, bottom: 18 }}>
+            {isBook && hero ? (
+              <Image source={{ uri: hero }} style={{ width: 104, height: 156, borderRadius: 10, marginBottom: 14, shadowColor: '#000', shadowOpacity: 0.55, shadowRadius: 14, shadowOffset: { width: 0, height: 14 }, elevation: 8 }} contentFit="cover"
+                transition={250} accessibilityLabel={`${mainTitle} kapağı`} />
+            ) : null}
             <View style={{ alignSelf: 'flex-start', borderWidth: 1, borderColor: 'rgba(0,217,192,0.45)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
               <T v="overline" c={color.accent}>{m.kind === 'book' ? 'KİTAP' : m.kind === 'movie' ? 'FİLM' : 'DİZİ'}</T>
             </View>
-            <T v="displayXl" style={{ marginTop: 10 }} accessibilityRole="header">{m.title}</T>
+            <T v={isBook ? 'displayLg' : 'displayXl'} style={{ marginTop: 10 }} accessibilityRole="header" numberOfLines={3}>{mainTitle}</T>
+            {subTitle ? <T v="body" c={color.textSoft} style={{ marginTop: 4 }} numberOfLines={2}>{subTitle}</T> : null}
             <T v="bodySm" c={color.textSoft} style={{ marginTop: 6 }}>{metaLine(m)}</T>
             {leads.length ? <T v="bodySm" c={color.textMuted}>{m.kind === 'book' ? 'Yazar' : m.kind === 'movie' ? 'Yönetmen' : 'Yaratıcı'} <T v="label">{leads.slice(0, 2).join(', ')}</T></T> : null}
           </View>

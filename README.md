@@ -65,7 +65,28 @@ cp .env.example .env           # EXPO_PUBLIC_SUPABASE_URL ve EXPO_PUBLIC_SUPABAS
 npx expo run:ios               # Apple girişi, kamera ve bildirim için geliştirme derlemesi gerekir
 ```
 
-`package.json` içindeki `*` sürümleri bilerek bırakıldı: `npx expo install --fix` bunları kurulu SDK'ya uygun tam sürümlere çevirir.
+Sürümler Expo SDK 58'in beklediği değerlere sabitlendi; SDK yükseltince `npx expo install --fix` çalıştır.
+
+### Yerel çalıştırma (web önizleme, Docker gerekir)
+
+Bulut hesabı açmadan uygulamayı tarayıcıda uçtan uca çalıştırır: yerel Supabase, 60 kitaplık İletişim kataloğu
+(`supabase/seed/`), e-posta kodları için Mailpit.
+
+```bash
+npx supabase@2.122.0 start -x studio,imgproxy,logflare,vector,supavisor,realtime,postgres-meta,edge-runtime
+# .env: EXPO_PUBLIC_SUPABASE_URL=/sb ve `supabase status` çıktısındaki ANON_KEY
+npm run web:build
+eval "$(npx supabase@2.122.0 status -o env | grep -E '^(API_URL|ANON_KEY|SERVICE_ROLE_KEY)=')"
+SUPABASE_URL=$API_URL SUPABASE_ANON_KEY=$ANON_KEY SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY npm run functions:dev &
+FUNCTIONS_API=http://127.0.0.1:54330 npm run web:preview      # http://localhost:8080
+```
+
+- Giriş kodu e-postaları Mailpit'e düşer: http://localhost:54324
+- `edge-runtime` konteyneri vekil sertifikalı ağlarda Deno paketlerini indiremediği için kapalı tutulur;
+  fonksiyonlar `tools/functions-dev.ts` ile yerel Deno'da çalışır. Normal ağda bu konteyneri açık bırakıp
+  `FUNCTIONS_API` vermeden de kullanabilirsin.
+- E-posta şablonu (`supabase/templates/otp.html`) bağlantı yerine 6 haneli kod gönderir; canlı projede de
+  Auth → Email Templates'te aynı şablon kullanılmalı.
 
 ### 3. Testler
 

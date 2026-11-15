@@ -2,10 +2,14 @@ import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 const extra = Constants.expoConfig?.extra ?? {};
-const url = extra.supabaseUrl as string | undefined;
+const rawUrl = extra.supabaseUrl as string | undefined;
+// Web önizlemesinde API aynı adresten (ör. /sb) sunulur; göreli adres sayfanın kökenine eklenir.
+const url = rawUrl?.startsWith('/') && Platform.OS === 'web' && typeof window !== 'undefined'
+  ? window.location.origin + rawUrl
+  : rawUrl;
 const anonKey = extra.supabaseAnonKey as string | undefined;
 
 if (!url || !anonKey) {
