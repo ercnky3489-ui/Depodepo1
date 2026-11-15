@@ -1,0 +1,11 @@
+node_modules/
+.expo/
+dist/
+ios/
+android/
+.env
+*.log
+supabase/.temp/
+src/types/database.gen.ts
+__pycache__/
+*.pyc
