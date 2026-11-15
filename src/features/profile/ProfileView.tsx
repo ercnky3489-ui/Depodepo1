@@ -11,7 +11,7 @@ import { usePrivateDetails, useReadingGoal, validBirthDate } from '../../api/pro
 import { useBlock, useFollow, useMonthlyStats, useProfileSummary, useUserContent } from '../../api/social';
 import { BadgeMedal, nextTierText, TIER_COLOR, TIER_LABEL, XPCard } from '../../components/Gamification';
 import { ProfileCover } from '../../components/ProfileCover';
-import { IconBack, IconMore, IconSettings, IconShare } from '../../components/icons';
+import { IconBack, IconEdit, IconMore, IconSettings, IconShare } from '../../components/icons';
 import { Avatar, Button, Card, ChipRow, Cover, Loading, Overline, T } from '../../components/ui';
 import { formatCompact, formatNumber } from '../../lib/format';
 import { supabase } from '../../lib/supabase';
@@ -118,6 +118,8 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
     else Alert.alert(name, undefined, [{ text: 'Şikayet et', onPress: () => handle(0) }, { text: 'Engelle', onPress: () => handle(1), style: 'destructive' }, { text: 'Vazgeç', style: 'cancel' }]);
   };
 
+  const birthDate = (own || priv.data?.show_birthdate) ? (priv.data?.birth_date ?? null) : null;
+  const side = sideInfo(p, birthDate);
   const rows = library.data ?? [];
   const shelf = (pred: (r: LibraryRow) => boolean) => rows.filter(pred);
   const books = rows.filter((r) => r.media.kind === 'book');
@@ -134,6 +136,7 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
         {showBack ? <IconButton label="Geri" onPress={() => router.back()}><IconBack /></IconButton> : <T v="label" style={{ paddingLeft: space[3], fontSize: 15 }}>@{p.username}</T>}
         <View style={{ flexDirection: 'row' }}>
           <IconButton label="Profili paylaş" onPress={() => Share.share({ message: `BOOKFLIX'te @${p.username}: bookflix://user/${p.id}` })}><IconShare size={21} c={color.text} /></IconButton>
+          {own ? <IconButton label="Profili düzenle" onPress={() => router.push('/settings/profile')}><IconEdit /></IconButton> : null}
           {own ? <IconButton label="Ayarlar" onPress={() => router.push('/settings')}><IconSettings /></IconButton>
             : <IconButton label="Diğer seçenekler" onPress={more}><IconMore c={color.text} /></IconButton>}
         </View>
@@ -148,21 +151,25 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
           <View style={{ marginTop: -12, backgroundColor: color.primary, borderRadius: 12, paddingHorizontal: 10, height: 24, justifyContent: 'center', borderWidth: 3, borderColor: color.bg }}>
             <T v="caption" c={color.onPrimary} style={{ fontFamily: 'Inter_800ExtraBold' }}>Sv. {p.level}</T>
           </View>
-          <T v="titleLg" style={{ marginTop: space[3] }}>{name}</T>
-          {p.bio ? <T v="bodySm" c={color.textSoft} style={{ textAlign: 'center', marginTop: 6 }}>{p.bio}</T> : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', marginTop: space[3], marginHorizontal: -space[4] }}>
+            <SideInfo items={summary.data.restricted ? [] : side.left} align="right" />
+            <View style={{ alignItems: 'center', paddingHorizontal: space[2], maxWidth: '52%' }}>
+              <T v="titleLg" style={{ textAlign: 'center' }}>{name}</T>
+              {p.bio ? <T v="bodySm" c={color.textSoft} style={{ textAlign: 'center', marginTop: 6 }}>{p.bio}</T> : null}
+            </View>
+            <SideInfo items={summary.data.restricted ? [] : side.right} align="left" />
+          </View>
           <View style={{ flexDirection: 'row', gap: 28, marginTop: 14 }}>
             <Count n={p.follower_count} l="takipçi" />
             <Count n={p.following_count} l="takip" />
             {summary.data.restricted ? null : <Count n={p.quote_count} l="alıntı" />}
             {summary.data.restricted ? null : <Count n={p.review_count} l="inceleme" />}
           </View>
-          {own ? (
-            <Button title="Profili düzenle" kind="secondary" onPress={() => router.push('/settings/profile')} style={{ alignSelf: 'stretch', marginTop: space[4] }} />
-          ) : (
+          {own ? null : (
             <Button title={isFollowing ? 'Takip ediliyor' : pending ? 'İstek gönderildi' : 'Takip et'} kind={isFollowing || pending ? 'tonal' : 'primary'}
               onPress={() => follow.mutate(!!isFollowing || !!pending)} loading={follow.isPending} style={{ alignSelf: 'stretch', marginTop: space[4] }} />
           )}
-          {summary.data.restricted ? null : <ProfileInfo p={p} own={!!own} birthDate={(own || priv.data?.show_birthdate) ? (priv.data?.birth_date ?? null) : null} />}
+          {summary.data.restricted ? null : <SocialLinks p={p} />}
         </View>
 
         {summary.data.restricted ? (
@@ -178,6 +185,11 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
 
             {tab === 'overview' ? (
               <>
+                {goal.data || own ? (
+                  <View style={{ paddingHorizontal: space[4], marginTop: space[4] }}>
+                    <GoalCard year={year} done={doneThisYear} target={goal.data ?? null} own={!!own} />
+                  </View>
+                ) : null}
                 {own ? (
                   <View style={{ paddingHorizontal: space[4], marginTop: space[4] }}>
                     <XPCard totalXp={p.total_xp} xpToday={summary.data.xp_today ?? 0} gain={gain.data ?? null} />
@@ -251,8 +263,7 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
 
             {tab === 'library' ? (
               <>
-                <View style={{ paddingHorizontal: space[4], marginTop: space[4], gap: space[3] }}>
-                  <GoalCard year={year} done={doneThisYear} target={goal.data ?? null} own={!!own} />
+                <View style={{ paddingHorizontal: space[4], marginTop: space[4] }}>
                   <ReadingDistribution rows={books} />
                 </View>
                 {monthly.data ? (
@@ -413,41 +424,53 @@ function Shelf({ title, items }: { title: string; items: { media: { id: string; 
 
 const LABEL_MONTH = (d: Date) => d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
 
-function ProfileInfo({ p, own, birthDate }: { p: { school: string | null; occupation: string | null; city: string | null; district: string | null; instagram: string | null; facebook: string | null; twitter: string | null; created_at: string; total_xp: number }; own: boolean; birthDate: string | null }) {
+type ProfileBits = { school: string | null; occupation: string | null; city: string | null; district: string | null; instagram: string | null; facebook: string | null; twitter: string | null; created_at: string; total_xp: number };
+
+// İsmin iki yanındaki bilgiler: başlık yazılmaz, yalnızca değerler (boş olanlar gösterilmez).
+function sideInfo(p: ProfileBits, birthDate: string | null) {
   const location = [p.city, p.district].filter(Boolean).join(' · ') || null;
-  const items: { label: string; value: string | null }[] = [
-    { label: 'Okul', value: p.school },
-    { label: 'Meslek', value: p.occupation },
-    { label: 'Nerede', value: location },
-    { label: 'Doğum tarihi', value: birthDate && validBirthDate(birthDate) ? LABEL_MONTH(new Date(birthDate + 'T00:00:00')) : null },
-    { label: 'Katıldı', value: LABEL_MONTH(new Date(p.created_at)).replace(/^\d+ /, '') },
-    { label: 'Puan', value: formatNumber(p.total_xp) },
-  ].filter((i) => i.value || own);
+  const joined = LABEL_MONTH(new Date(p.created_at)).replace(/^\d+ /, '');
+  const birth = birthDate && validBirthDate(birthDate) ? LABEL_MONTH(new Date(birthDate + 'T00:00:00')) : null;
+  return {
+    left: [p.school, p.occupation, birth].filter(Boolean) as string[],
+    right: [location, `${joined}'${ablative(new Date(p.created_at).getFullYear())} beri`, `${formatNumber(p.total_xp)} puan`].filter(Boolean) as string[],
+  };
+}
+
+// Sayının okunuşuna göre ayrılma eki: 2026'dan, 2027'den, 2023'ten, 2030'dan, 2000'den.
+function ablative(n: number): string {
+  const ones = ['', 'den', 'den', 'ten', 'ten', 'ten', 'dan', 'den', 'den', 'dan'];
+  const tens = ['', 'dan', 'den', 'dan', 'tan', 'den', 'tan', 'ten', 'den', 'dan'];
+  if (n % 10) return ones[n % 10]!;
+  if (n % 100) return tens[(n % 100) / 10]!;
+  return 'den';
+}
+
+function SideInfo({ items, align }: { items: string[]; align: 'left' | 'right' }) {
+  return (
+    <View style={{ flex: 1, gap: 6, alignItems: align === 'right' ? 'flex-end' : 'flex-start' }}>
+      {items.map((t) => (
+        <T key={t} v="caption" c={color.textSoft} numberOfLines={2} style={{ fontSize: 11.5, lineHeight: 15, textAlign: align }}>{t}</T>
+      ))}
+    </View>
+  );
+}
+
+function SocialLinks({ p }: { p: ProfileBits }) {
   const socials = [
     p.instagram ? { label: 'Instagram', url: `https://instagram.com/${p.instagram}` } : null,
     p.facebook ? { label: 'Facebook', url: `https://facebook.com/${p.facebook}` } : null,
     p.twitter ? { label: 'X', url: `https://x.com/${p.twitter}` } : null,
   ].filter(Boolean) as { label: string; url: string }[];
+  if (!socials.length) return null;
   return (
-    <View style={{ alignSelf: 'stretch', marginTop: space[4], gap: space[3] }}>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
-        {items.map((i) => (
-          <View key={i.label} style={{ width: '48.5%', backgroundColor: color.surface, borderRadius: 14, borderWidth: 1, borderColor: '#1F2B26', padding: 12 }}>
-            <T v="overline" c={color.textMuted} style={{ fontSize: 10 }}>{i.label.toLocaleUpperCase('tr-TR')}</T>
-            <T v="label" c={i.value ? color.text : color.textFaint} style={{ fontSize: 13, marginTop: 4 }} numberOfLines={2}>{i.value ?? 'Ekle'}</T>
-          </View>
-        ))}
-      </View>
-      {socials.length ? (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2], justifyContent: 'center' }}>
-          {socials.map((s) => (
-            <Pressable key={s.label} onPress={() => Linking.openURL(s.url)} accessibilityRole="link" accessibilityLabel={`${s.label} hesabı`}
-              style={{ paddingHorizontal: 14, height: 36, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(0,229,160,0.45)', backgroundColor: 'rgba(0,229,160,0.08)', alignItems: 'center', justifyContent: 'center' }}>
-              <T v="caption" c={color.primary} style={{ fontFamily: 'Inter_700Bold' }}>{s.label}</T>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2], justifyContent: 'center', marginTop: space[4] }}>
+      {socials.map((s) => (
+        <Pressable key={s.label} onPress={() => Linking.openURL(s.url)} accessibilityRole="link" accessibilityLabel={`${s.label} hesabı`}
+          style={{ paddingHorizontal: 14, height: 36, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(0,229,160,0.45)', backgroundColor: 'rgba(0,229,160,0.08)', alignItems: 'center', justifyContent: 'center' }}>
+          <T v="caption" c={color.primary} style={{ fontFamily: 'Inter_700Bold' }}>{s.label}</T>
+        </Pressable>
+      ))}
     </View>
   );
 }
