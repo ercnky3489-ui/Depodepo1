@@ -1,7 +1,8 @@
 // Ana akış kartları. Her aktivite türünün kendi görsel hiyerarşisi var:
 // büyük (alıntı, izlenen film, bitirilen kitap) · orta (inceleme, dizi, liste) · küçük (takip, beğeni, başlama).
 import { router } from 'expo-router';
-import { memo } from 'react';
+import { memo, useState } from 'react';
+import { ShareQuoteSheet, STORY_SHARE_SUPPORTED } from '../features/share/ShareQuoteSheet';
 import { Pressable, Share, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useToggleHelpful, useToggleLike, useToggleSave } from '../api/feed';
@@ -46,7 +47,7 @@ function Meta({ item, size = 34, right, onMore }: { item: FeedItem; size?: numbe
   );
 }
 
-function Actions({ item, type }: { item: FeedItem; type: 'quote' | 'review' | 'list' }) {
+function Actions({ item, type, onShare }: { item: FeedItem; type: 'quote' | 'review' | 'list'; onShare?: () => void }) {
   const like = useToggleLike();
   const save = useToggleSave();
   const id = item.object?.id;
@@ -70,7 +71,7 @@ function Actions({ item, type }: { item: FeedItem; type: 'quote' | 'review' | 'l
         <IconBookmark fill={item.saved_by_me ? color.primary : 'none'} c={item.saved_by_me ? color.primary : color.textMuted} />
       </Pressable>
       <Pressable style={styles.act} accessibilityRole="button" accessibilityLabel="Paylaş"
-        onPress={() => Share.share({ message: `BOOKFLIX'te bak: bookflix://${type}/${id}` })}>
+        onPress={() => (onShare ? onShare() : Share.share({ message: `BOOKFLIX'te bak: bookflix://${type}/${id}` }))}>
         <IconShare />
       </Pressable>
     </View>
@@ -79,6 +80,7 @@ function Actions({ item, type }: { item: FeedItem; type: 'quote' | 'review' | 'l
 
 function QuoteCard({ item }: { item: FeedItem }) {
   const q = item.object!;
+  const [sharing, setSharing] = useState(false);
   const isBook = item.media?.kind === 'book';
   const source = isBook
     ? `${item.media?.authors?.[0] ?? ''}${q.page_number && !q.hide_page ? ` · Sayfa ${q.page_number}` : ''}`
@@ -100,7 +102,22 @@ function QuoteCard({ item }: { item: FeedItem }) {
           <T v="caption" c={color.textMuted}>{source}</T>
         </View>
       </Pressable>
-      <Actions item={item} type="quote" />
+      <Actions item={item} type="quote" onShare={STORY_SHARE_SUPPORTED ? () => setSharing(true) : undefined} />
+      {STORY_SHARE_SUPPORTED && sharing ? (
+        <ShareQuoteSheet
+          visible
+          onClose={() => setSharing(false)}
+          link={typeof window !== 'undefined' ? new URL('.', window.location.href).href : `bookflix://quote/${q.id}`}
+          story={{
+            body: q.body ?? '',
+            title: item.media?.title ?? '',
+            author: isBook ? item.media?.authors?.[0] ?? null : null,
+            page: isBook && q.page_number && !q.hide_page ? q.page_number : null,
+            sharedBy: item.actor.display_name,
+            username: item.actor.username,
+          }}
+        />
+      ) : null}
     </Card>
   );
 }
