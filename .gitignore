@@ -9,3 +9,6 @@ supabase/.temp/
 src/types/database.gen.ts
 __pycache__/
 *.pyc
+
+# Yayınevi kapakları telifli: yerelde tutulur, depoya gönderilmez
+data/*/covers/
