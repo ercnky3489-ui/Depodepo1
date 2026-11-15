@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  useLibraryEntry, useMedia, useMediaQuotes, useMediaReviews, useMyHistory, useSeasons, useSeriesProgress, useSetLibrary, useSimilarMedia, useToggleEpisode,
+  useLibraryEntry, useMedia, useRemoveFromLibrary, useMediaQuotes, useMediaReviews, useMyHistory, useSeasons, useSeriesProgress, useSetLibrary, useSimilarMedia, useToggleEpisode,
 } from '../../src/api/media';
 import { useToggleHelpful } from '../../src/api/feed';
 import { IconBack, IconCheck, IconShare, IconThumb } from '../../src/components/icons';
@@ -40,6 +40,7 @@ export default function MediaDetailScreen() {
   const media = useMedia(id);
   const entry = useLibraryEntry(id);
   const setLib = useSetLibrary(id);
+  const removeLib = useRemoveFromLibrary(id);
   const [tab, setTab] = useState<Tab>('details');
   const [rateOpen, setRateOpen] = useState(false);
   const m = media.data;
@@ -63,6 +64,11 @@ export default function MediaDetailScreen() {
   ];
 
   const pickStatus = (s: LibraryStatus) => {
+    // Seçili duruma tekrar dokunmak eseri kütüphaneden çıkarır.
+    if (status === s) {
+      removeLib.mutate(undefined, { onError: () => Alert.alert('Kaldırılamadı', 'Lütfen tekrar dene.') });
+      return;
+    }
     setLib.mutate({ status: s }, {
       onSuccess: () => { if (s === 'completed' && !entry.data?.rating) setRateOpen(true); },
       onError: () => Alert.alert('Kaydedilemedi', 'Lütfen tekrar dene.'),
@@ -110,6 +116,7 @@ export default function MediaDetailScreen() {
             const on = status === s;
             return (
               <Pressable key={s} onPress={() => pickStatus(s)} accessibilityRole="radio" accessibilityState={{ selected: on }}
+                accessibilityHint={on ? 'Tekrar dokunursan listenden çıkarılır' : undefined}
                 style={[{ flex: 1, height: 48, borderRadius: radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
                   on ? { backgroundColor: color.primary, borderColor: color.primary, shadowColor: color.primary, shadowOpacity: 0.4, shadowRadius: 22 } : { backgroundColor: color.surface, borderColor: '#1F2B26' }]}>
                 <T v="label" c={on ? color.onPrimary : color.text} style={{ fontFamily: 'Inter_700Bold' }}>{labels[s]}</T>

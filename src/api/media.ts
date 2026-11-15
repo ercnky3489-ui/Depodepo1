@@ -68,7 +68,13 @@ export function useRemoveFromLibrary(mediaId: string) {
       const { error } = await supabase.from('library_entries').delete().eq('user_id', uid!).eq('media_id', mediaId);
       if (error) throw error;
     },
-    onSuccess: () => qc.setQueryData(['library', uid, mediaId], null),
+    onMutate: () => haptic.status(),
+    onSuccess: () => {
+      qc.setQueryData(['library', uid, mediaId], null);
+      qc.invalidateQueries({ queryKey: ['media', mediaId] });
+      qc.invalidateQueries({ queryKey: ['me'] });
+      qc.invalidateQueries({ queryKey: ['feed'] });
+    },
   });
 }
 
