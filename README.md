@@ -88,6 +88,18 @@ FUNCTIONS_API=http://127.0.0.1:54330 npm run web:preview      # http://localhost
 - E-posta şablonu (`supabase/templates/otp.html`) bağlantı yerine 6 haneli kod gönderir; canlı projede de
   Auth → Email Templates'te aynı şablon kullanılmalı.
 
+### Demo kullanıcılar
+
+```bash
+python tools/demo_users.py --create --follow-user <kullanıcı-adın>   # 50 demo kullanıcı, alıntı, inceleme, beğeni, takip
+python tools/demo_users.py --status
+python tools/demo_users.py --remove                                  # hepsini ve içeriklerini siler
+```
+
+Demo hesaplar `app_metadata.demo = true` ile işaretlidir, e-postaları `demo-NN@demo.bookflix.invalid`, şifreleri yoktur ve
+profillerinde "Demo hesap" yazar. Alıntı metinleri kitaplardan gerçek pasajlar değildir. Silme yalnızca işaretli hesapları
+kaldırır; içerikleri ON DELETE CASCADE ile gider, sayaçlar tetikleyicilerle düzelir. `--target local` yerel Supabase'de çalışır.
+
 ### 3. Testler
 
 ```bash
