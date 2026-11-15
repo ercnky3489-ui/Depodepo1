@@ -46,7 +46,7 @@ export default function Home() {
         getItemType={(it) => it.verb}
         onEndReached={() => { if (feed.hasNextPage && !feed.isFetchingNextPage) feed.fetchNextPage(); }}
         onEndReachedThreshold={0.6}
-        refreshControl={<RefreshControl refreshing={feed.isRefetching} onRefresh={() => feed.refetch()} tintColor={color.primary} />}
+        refreshControl={<RefreshControl refreshing={feed.isRefetching} onRefresh={() => { void feed.refetch(); }} tintColor={color.primary} />}
         ListHeaderComponent={<View style={{ height: space[1] }} />}
         ListFooterComponent={feed.isFetchingNextPage ? <Loading /> : <View style={{ height: 40 }} />}
         ListEmptyComponent={feed.isLoading ? <Loading /> : (

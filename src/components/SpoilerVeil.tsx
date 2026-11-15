@@ -41,7 +41,7 @@ export function SpoilerVeil({ text, hidden: initiallyHidden = true }: { text: st
 
 const styles = StyleSheet.create({
   wrap: { marginTop: space[3], borderRadius: 12, overflow: 'hidden', minHeight: 64 },
-  btn: { ...StyleSheet.absoluteFillObject, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space[2],
+  btn: { ...StyleSheet.absoluteFill, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space[2],
     borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(0,217,192,0.5)', borderRadius: 12, backgroundColor: 'rgba(12,18,16,0.55)' },
   open: { marginTop: space[3], padding: space[3], borderRadius: radius.sm, backgroundColor: 'rgba(0,217,192,0.06)' },
 });

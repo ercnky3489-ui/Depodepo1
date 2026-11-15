@@ -1,5 +1,4 @@
-import { useFocusEffect } from '@react-navigation/native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import { FlatList, Pressable, RefreshControl, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -57,7 +56,7 @@ export default function Notifications() {
       <FlatList
         data={list.data ?? []}
         keyExtractor={(n) => n.id}
-        refreshControl={<RefreshControl refreshing={list.isRefetching} onRefresh={() => list.refetch()} tintColor={color.primary} />}
+        refreshControl={<RefreshControl refreshing={list.isRefetching} onRefresh={() => { void list.refetch(); }} tintColor={color.primary} />}
         ListEmptyComponent={list.isLoading ? <Loading /> : <EmptyState title="Henüz bildirim yok" body="Beğeniler, yorumlar, yeni takipçiler ve kazandığın rozetler burada görünür." />}
         renderItem={({ item: n }) => {
           const name = n.actor?.display_name ?? n.actor?.username ?? 'BOOKFLIX';

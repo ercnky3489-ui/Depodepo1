@@ -1,4 +1,4 @@
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import type { BottomTabBarProps } from 'expo-router/tabs';
 import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +16,7 @@ const TABS = [
   { name: 'profile', label: 'Profil', Icon: IconUser },
 ] as const;
 
-export function BottomNav({ state, navigation }: BottomTabBarProps) {
+export function BottomNav({ state, emitter, navigateToTab }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const unread = useUnreadCount().data ?? 0;
   const active = state.routes[state.index]?.name;
@@ -43,8 +43,9 @@ export function BottomNav({ state, navigation }: BottomTabBarProps) {
             onPress={() => {
               haptic.select();
               const route = state.routes.find((r) => r.name === tab.name);
-              const event = navigation.emit({ type: 'tabPress', target: route?.key ?? '', canPreventDefault: true });
-              if (!on && !event.defaultPrevented) navigation.navigate(tab.name);
+              if (!route) return;
+              const event = emitter.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+              if (!on && !event.defaultPrevented) navigateToTab(route.key);
             }}
             style={{ flex: 1, alignItems: 'center', gap: 4, minHeight: 44 }}>
             <Icon c={on ? color.primary : color.textMuted} fill={on ? 'rgba(0,229,160,0.15)' : 'none'} />

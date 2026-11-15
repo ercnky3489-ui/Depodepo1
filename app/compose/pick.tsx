@@ -82,9 +82,9 @@ export default function Pick() {
         keyExtractor={(m) => m.id}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingHorizontal: space[4], paddingBottom: 40 }}
-        ListHeaderComponent={q.length < 2 && items.length ? <T v="overline" c={color.textMuted} style={{ marginBottom: space[2] }}>SON KAYITLARIN</T> : results.isFetching ? <Loading /> : null}
+        ListHeaderComponent={q.length < 2 && items.length ? <T v="overline" c={color.textMuted} style={{ marginBottom: space[2] }}>SON KAYITLARIN</T> : results.isFetching ? <Loading /> : undefined}
         ListFooterComponent={wantsBooks && q.length >= 2 ? (
-          <View style={{ marginTop: space[5] }}>
+          <View style={{ marginTop: space[6] }}>
             <T v="overline" c={color.textMuted}>GOOGLE BOOKS'TA</T>
             {google.isFetching ? <Loading /> : null}
             {google.isError ? <T v="caption" c={color.textMuted} style={{ marginTop: space[2] }}>Google Books'a şu an ulaşılamıyor.</T> : null}
@@ -109,8 +109,8 @@ export default function Pick() {
               </Pressable>
             ) : null}
           </View>
-        ) : null}
-        ListEmptyComponent={results.isFetching ? null : q.length >= 2 ? (
+        ) : undefined}
+        ListEmptyComponent={results.isFetching ? undefined : q.length >= 2 ? (
           <View><EmptyState title="BOOKFLIX kataloğunda yok" body={wantsBooks ? "Aşağıdaki Google Books sonuçlarından seçebilir ya da ISBN ile ekleyebilirsin." : "Başka bir adla aramayı dene."} /><Button title="ISBN ile kitap ekle" onPress={() => router.push('/compose/isbn')} /></View>
         ) : <EmptyState title="Aramaya başla" body="En az 2 harf yaz." />}
         renderItem={({ item: m }) => (

@@ -181,7 +181,7 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
                     <T v="label" style={{ marginTop: 10 }}>{b.name}</T>
                     <T v="overline" c={TIER_COLOR[b.tier]} style={{ marginTop: 2 }}>{TIER_LABEL[b.tier]}</T>
                     <View style={{ height: 4, borderRadius: 2, backgroundColor: color.border, alignSelf: 'stretch', marginHorizontal: 14, marginTop: space[2] }}>
-                      <View style={{ height: 4, borderRadius: 2, backgroundColor: color.primary, width: `${b.tier >= 3 ? 100 : Math.min(100, (b.progress / (b.tiers[b.tier] ?? 1)) * 100)}%` }} />
+                      <View style={{ height: 4, borderRadius: 2, backgroundColor: color.primary, width: `${b.tier >= 3 ? 100 : Math.min(100, (b.progress / ((b.tiers as readonly number[])[b.tier] ?? 1)) * 100)}%` }} />
                     </View>
                     <T v="caption" c={color.textMuted} style={{ fontSize: 10, marginTop: 4 }}>{nextTierText(b.progress, b.tiers, b.tier, BADGE_UNIT[b.code] ?? '')}</T>
                   </Pressable>

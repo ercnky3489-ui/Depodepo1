@@ -60,10 +60,10 @@ export default function Search() {
         keyExtractor={(r) => r.key}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingHorizontal: space[4], paddingBottom: 60 }}
-        ListHeaderComponent={loading ? <Loading /> : null}
+        ListHeaderComponent={loading ? <Loading /> : undefined}
         ListEmptyComponent={q.length < 2 ? (
           <EmptyState title="Ne arıyorsun?" body="Kitap adı, yazar, ISBN, film, dizi veya kullanıcı adı yazabilirsin." />
-        ) : loading ? null : (
+        ) : loading ? undefined : (
           <View>
             <EmptyState title="Bu kapsamda sonuç yok" body="Katalogda bulamadığın bir kitabı ISBN ile ekleyebilirsin." />
             <Button title="ISBN ile kitap ekle" onPress={() => router.push('/compose/isbn')} />

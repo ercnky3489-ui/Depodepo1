@@ -9,7 +9,6 @@ const config: ExpoConfig = {
   userInterfaceStyle: 'dark',
   backgroundColor: '#080B0A',
   icon: './assets/icon.png',
-  splash: { image: './assets/splash.png', resizeMode: 'contain', backgroundColor: '#080B0A' },
   ios: {
     bundleIdentifier: 'app.bookflix',
     supportsTablet: false,
@@ -29,6 +28,7 @@ const config: ExpoConfig = {
     'expo-router',
     'expo-apple-authentication',
     'expo-font',
+    ['expo-splash-screen', { image: './assets/splash.png', resizeMode: 'contain', imageWidth: 200, backgroundColor: '#080B0A' }],
     ['expo-notifications', { color: '#00E5A0' }],
     ['expo-camera', { cameraPermission: 'Kitap eklerken ISBN barkodunu okumak için kameraya erişim gerekiyor.' }],
   ],
