@@ -32,7 +32,8 @@ const config: ExpoConfig = {
     ['expo-notifications', { color: '#00E5A0' }],
     ['expo-camera', { cameraPermission: 'Kitap eklerken ISBN barkodunu okumak için kameraya erişim gerekiyor.' }],
   ],
-  experiments: { typedRoutes: true },
+  // GitHub Pages gibi alt yolda yayın için: EXPO_BASE_URL=/Depodepo1
+  experiments: { typedRoutes: true, ...(process.env.EXPO_BASE_URL ? { baseUrl: process.env.EXPO_BASE_URL } : {}) },
   extra: {
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
