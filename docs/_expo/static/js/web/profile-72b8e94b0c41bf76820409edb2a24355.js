@@ -1,0 +1,1 @@
+__d(function(g,r,i,a,m,e,d){"use strict";Object.defineProperty(e,'__esModule',{value:!0}),Object.defineProperty(e,"default",{enumerable:!0,get:function(){return o}});var n=r(d[0]),t=r(d[1]),u=r(d[2]);function o(){const o=(0,t.useUserId)();return o?(0,u.jsx)(n.ProfileView,{userId:o,own:!0}):null}},769,[865,796,6]);

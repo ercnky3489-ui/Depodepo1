@@ -38,7 +38,11 @@ export default function EmailSignIn() {
         </Pressable>
         <T v="displayLg" style={{ marginTop: space[4] }}>{sent ? 'Kodu gir' : 'E-posta ile giriş'}</T>
         <T v="body" c={color.textMuted} style={{ marginTop: space[2] }}>
-          {sent ? `${email} adresine 6 haneli bir kod gönderdik.` : 'Şifre yok: adresine tek kullanımlık bir kod göndereceğiz.'}
+          {sent
+            ? Platform.OS === 'web'
+              ? `${email} adresine bir e-posta gönderdik. İçindeki bağlantıya bu tarayıcıda dokun; 6 haneli kod varsa aşağıya da yazabilirsin.`
+              : `${email} adresine 6 haneli bir kod gönderdik.`
+            : 'Şifre yok: adresine tek kullanımlık bir giriş e-postası göndereceğiz.'}
         </T>
         <View style={{ gap: space[3], marginTop: space[6] }}>
           {!sent ? (

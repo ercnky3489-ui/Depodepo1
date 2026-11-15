@@ -5,6 +5,7 @@ import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Platform } from 'react-native';
 import { supabase } from './supabase';
 import type { Profile } from '../types/db';
 
@@ -90,7 +91,12 @@ export async function signInWithGoogle(): Promise<void> {
 }
 
 export async function sendEmailCode(email: string): Promise<void> {
-  const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+  // Web'de e-posta hem kod hem bağlantı içerebilir (Supabase ücretsiz planı yalnızca bağlantı gönderir);
+  // bağlantı sitenin köküne (ör. /Depodepo1/) döner ve oturum oradan açılır.
+  const emailRedirectTo = Platform.OS === 'web' && typeof window !== 'undefined'
+    ? new URL('.', window.location.href).href
+    : undefined;
+  const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo } });
   if (error) throw error;
 }
 

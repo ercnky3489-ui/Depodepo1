@@ -21,7 +21,8 @@ export const supabase = createClient(url, anonKey, {
     storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    // Web'de e-postadaki giriş bağlantısı siteye ?code= ile döner; oturum adresten alınır.
+    detectSessionInUrl: Platform.OS === 'web',
     flowType: 'pkce',
   },
 });
