@@ -10,5 +10,6 @@ rm -rf docs
 # .env (yerel geliştirme değerleri) bu derlemeye karışmasın
 EXPO_NO_DOTENV=1 CI=1 npx expo export --platform web --output-dir docs --clear
 cp docs/index.html docs/404.html   # Pages'te /media/... gibi adresler yenilenince uygulama açılsın
+node tools/inject-pwa.mjs docs "$EXPO_BASE_URL"
 touch docs/.nojekyll                # _expo/ klasörü Jekyll tarafından atlanmasın
 echo "Hazır: docs/ ($EXPO_BASE_URL)"

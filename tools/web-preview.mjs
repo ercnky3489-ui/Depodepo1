@@ -13,7 +13,7 @@ const API = new URL(process.env.SUPABASE_API ?? 'http://127.0.0.1:54321');
 // Edge Function'lar ayrı çalıştırılıyorsa (tools/functions-dev.ts) /functions/v1 oraya gider.
 const FUNCTIONS = process.env.FUNCTIONS_API ? new URL(process.env.FUNCTIONS_API) : null;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
-  '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ttf': 'font/ttf', '.ico': 'image/x-icon', '.map': 'application/json' };
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ttf': 'font/ttf', '.ico': 'image/x-icon', '.map': 'application/json', '.webmanifest': 'application/manifest+json' };
 
 http.createServer((req, res) => {
   if (req.url.startsWith('/sb/')) {
