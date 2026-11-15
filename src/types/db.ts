@@ -27,6 +27,15 @@ export interface Profile extends ProfileLite {
   review_count: number;
   onboarded_at: string | null;
   deleted_at: string | null;
+  created_at: string;
+  school: string | null;
+  occupation: string | null;
+  city: string | null;
+  district: string | null;
+  instagram: string | null;
+  facebook: string | null;
+  twitter: string | null;
+  cover_path: string | null;
 }
 
 export interface MediaLite {

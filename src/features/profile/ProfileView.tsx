@@ -4,11 +4,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActionSheetIOS, Alert, Platform, Pressable, RefreshControl, ScrollView, Share, View } from 'react-native';
+import { ActionSheetIOS, Alert, Linking, Platform, Pressable, RefreshControl, ScrollView, Share, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { REPORT_REASONS, useReport } from '../../api/content';
+import { usePrivateDetails, useReadingGoal, validBirthDate } from '../../api/profileDetails';
 import { useBlock, useFollow, useMonthlyStats, useProfileSummary, useUserContent } from '../../api/social';
 import { BadgeMedal, nextTierText, TIER_COLOR, TIER_LABEL, XPCard } from '../../components/Gamification';
+import { ProfileCover } from '../../components/ProfileCover';
 import { IconBack, IconMore, IconSettings, IconShare } from '../../components/icons';
 import { Avatar, Button, Card, ChipRow, Cover, Loading, Overline, T } from '../../components/ui';
 import { formatCompact, formatNumber } from '../../lib/format';
@@ -38,7 +40,7 @@ const PROFILE_TABS: readonly { id: ProfileTab; label: string }[] = [
   { id: 'badges', label: 'Rozetler' },
 ];
 
-type LibraryRow = { status: string; is_favorite: boolean; updated_at?: string; media: { id: string; title: string; kind: MediaKind; cover_path: string | null } };
+type LibraryRow = { status: string; is_favorite: boolean; updated_at?: string; finished_at?: string | null; media: { id: string; title: string; kind: MediaKind; cover_path: string | null } };
 
 function useXpGain(own: boolean, totalXp: number | undefined) {
   return useQuery({
@@ -67,13 +69,17 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
   const gain = useXpGain(!!own, p?.total_xp);
   const [selected, setSelected] = useState<string | null>(null);
   const [tab, setTab] = useState<ProfileTab>('overview');
+  const year = new Date().getFullYear();
+  const visible = summary.data?.restricted === false;
+  const goal = useReadingGoal(visible ? userId : null, year);
+  const priv = usePrivateDetails(visible ? userId : null);
 
   const library = useQuery({
     queryKey: ['shelves', userId],
     enabled: summary.data?.restricted === false,
     queryFn: async () => {
       const { data, error } = await supabase.from('library_entries')
-        .select('status, is_favorite, updated_at, media:media_items!inner(id, title, kind, cover_path)')
+        .select('status, is_favorite, updated_at, finished_at, media:media_items!inner(id, title, kind, cover_path)')
         .eq('user_id', userId).order('updated_at', { ascending: false }).limit(500);
       if (error) throw error;
       return data as unknown as LibraryRow[];
@@ -115,6 +121,12 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
   const rows = library.data ?? [];
   const shelf = (pred: (r: LibraryRow) => boolean) => rows.filter(pred);
   const books = rows.filter((r) => r.media.kind === 'book');
+  const doneThisYear = books.filter((r) => r.status === 'completed' && new Date(r.finished_at ?? r.updated_at ?? 0).getFullYear() === year).length;
+  const now = [
+    ...rows.filter((r) => r.media.kind === 'book' && r.status === 'in_progress').map((r) => ({ media: r.media, tag: 'OKUYOR' })),
+    ...rows.filter((r) => r.media.kind === 'series' && r.status === 'in_progress').map((r) => ({ media: r.media, tag: 'İZLİYOR' })),
+    ...rows.filter((r) => r.media.kind === 'movie' && r.status === 'completed').slice(0, 4).map((r) => ({ media: r.media, tag: 'İZLEDİ' })),
+  ];
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: color.bg }}>
@@ -128,9 +140,10 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} refreshControl={<RefreshControl refreshing={summary.isRefetching} onRefresh={() => { summary.refetch(); content.refetch(); }} tintColor={color.primary} />}>
-        <View style={{ alignItems: 'center', paddingHorizontal: space[6], paddingTop: space[3] }}>
-          <View style={{ padding: 5, borderRadius: 60, borderWidth: 3, borderColor: color.primary, shadowColor: color.primary, shadowOpacity: 0.3, shadowRadius: 20 }}>
-            <Avatar name={name} path={p.avatar_path} size={86} />
+        <ProfileCover path={p.cover_path} height={190} />
+        <View style={{ alignItems: 'center', paddingHorizontal: space[6], marginTop: -64 }}>
+          <View style={{ padding: 5, borderRadius: 66, borderWidth: 3, borderColor: color.primary, backgroundColor: color.bg, shadowColor: color.primary, shadowOpacity: 0.35, shadowRadius: 22 }}>
+            <Avatar name={name} path={p.avatar_path} size={112} />
           </View>
           <View style={{ marginTop: -12, backgroundColor: color.primary, borderRadius: 12, paddingHorizontal: 10, height: 24, justifyContent: 'center', borderWidth: 3, borderColor: color.bg }}>
             <T v="caption" c={color.onPrimary} style={{ fontFamily: 'Inter_800ExtraBold' }}>Sv. {p.level}</T>
@@ -149,6 +162,7 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
             <Button title={isFollowing ? 'Takip ediliyor' : pending ? 'İstek gönderildi' : 'Takip et'} kind={isFollowing || pending ? 'tonal' : 'primary'}
               onPress={() => follow.mutate(!!isFollowing || !!pending)} loading={follow.isPending} style={{ alignSelf: 'stretch', marginTop: space[4] }} />
           )}
+          {summary.data.restricted ? null : <ProfileInfo p={p} own={!!own} birthDate={(own || priv.data?.show_birthdate) ? (priv.data?.birth_date ?? null) : null} />}
         </View>
 
         {summary.data.restricted ? (
@@ -158,6 +172,8 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
           </Card>
         ) : (
           <>
+            {now.length ? <NowStrip items={now} /> : null}
+
             <ChipRow items={PROFILE_TABS} value={tab} onChange={setTab} />
 
             {tab === 'overview' ? (
@@ -176,7 +192,7 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
                 <View style={{ paddingHorizontal: space[4], marginTop: 26 }}>
                   <Overline>{`${new Date().getFullYear()} istatistikleri`}</Overline>
                   <View style={{ flexDirection: 'row', gap: space[2], marginTop: space[3] }}>
-                    <Stat n={formatCompact(summary.data.stats?.books_completed ?? 0)} l="kitap" />
+                    <Stat n={formatCompact(doneThisYear)} l="kitap" />
                     <Stat n={formatCompact(summary.data.stats?.pages_read ?? 0)} l="sayfa" />
                     <Stat n={formatCompact(summary.data.stats?.movies_watched ?? 0)} l="film" c={color.accent} />
                     <Stat n={formatCompact(summary.data.stats?.episodes_watched ?? 0)} l="bölüm" c={color.accent} />
@@ -235,7 +251,8 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
 
             {tab === 'library' ? (
               <>
-                <View style={{ paddingHorizontal: space[4], marginTop: space[4] }}>
+                <View style={{ paddingHorizontal: space[4], marginTop: space[4], gap: space[3] }}>
+                  <GoalCard year={year} done={doneThisYear} target={goal.data ?? null} own={!!own} />
                   <ReadingDistribution rows={books} />
                 </View>
                 {monthly.data ? (
@@ -391,5 +408,100 @@ function Shelf({ title, items }: { title: string; items: { media: { id: string; 
         ))}
       </ScrollView>
     </View>
+  );
+}
+
+const LABEL_MONTH = (d: Date) => d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+function ProfileInfo({ p, own, birthDate }: { p: { school: string | null; occupation: string | null; city: string | null; district: string | null; instagram: string | null; facebook: string | null; twitter: string | null; created_at: string; total_xp: number }; own: boolean; birthDate: string | null }) {
+  const location = [p.city, p.district].filter(Boolean).join(' · ') || null;
+  const items: { label: string; value: string | null }[] = [
+    { label: 'Okul', value: p.school },
+    { label: 'Meslek', value: p.occupation },
+    { label: 'Nerede', value: location },
+    { label: 'Doğum tarihi', value: birthDate && validBirthDate(birthDate) ? LABEL_MONTH(new Date(birthDate + 'T00:00:00')) : null },
+    { label: 'Katıldı', value: LABEL_MONTH(new Date(p.created_at)).replace(/^\d+ /, '') },
+    { label: 'Puan', value: formatNumber(p.total_xp) },
+  ].filter((i) => i.value || own);
+  const socials = [
+    p.instagram ? { label: 'Instagram', url: `https://instagram.com/${p.instagram}` } : null,
+    p.facebook ? { label: 'Facebook', url: `https://facebook.com/${p.facebook}` } : null,
+    p.twitter ? { label: 'X', url: `https://x.com/${p.twitter}` } : null,
+  ].filter(Boolean) as { label: string; url: string }[];
+  return (
+    <View style={{ alignSelf: 'stretch', marginTop: space[4], gap: space[3] }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
+        {items.map((i) => (
+          <View key={i.label} style={{ width: '48.5%', backgroundColor: color.surface, borderRadius: 14, borderWidth: 1, borderColor: '#1F2B26', padding: 12 }}>
+            <T v="overline" c={color.textMuted} style={{ fontSize: 10 }}>{i.label.toLocaleUpperCase('tr-TR')}</T>
+            <T v="label" c={i.value ? color.text : color.textFaint} style={{ fontSize: 13, marginTop: 4 }} numberOfLines={2}>{i.value ?? 'Ekle'}</T>
+          </View>
+        ))}
+      </View>
+      {socials.length ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2], justifyContent: 'center' }}>
+          {socials.map((s) => (
+            <Pressable key={s.label} onPress={() => Linking.openURL(s.url)} accessibilityRole="link" accessibilityLabel={`${s.label} hesabı`}
+              style={{ paddingHorizontal: 14, height: 36, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(0,229,160,0.45)', backgroundColor: 'rgba(0,229,160,0.08)', alignItems: 'center', justifyContent: 'center' }}>
+              <T v="caption" c={color.primary} style={{ fontFamily: 'Inter_700Bold' }}>{s.label}</T>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+// Şu an: okuduğu kitaplar, izlediği diziler, son izlediği filmler; yatay kaydırılır.
+function NowStrip({ items }: { items: { media: { id: string; title: string; cover_path: string | null }; tag: string }[] }) {
+  return (
+    <View style={{ marginTop: 26 }}>
+      <View style={{ paddingHorizontal: space[4] }}><Overline>Şu an</Overline></View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingHorizontal: space[4], paddingTop: space[3] }}>
+        {items.map(({ media, tag }) => (
+          <Pressable key={`${tag}-${media.id}`} onPress={() => router.push(`/media/${media.id}`)} accessibilityRole="link" accessibilityLabel={`${media.title}, ${tag.toLocaleLowerCase('tr-TR')}`}
+            style={{ width: 104 }}>
+            <View style={{ shadowColor: color.primary, shadowOpacity: tag === 'OKUYOR' || tag === 'İZLİYOR' ? 0.35 : 0, shadowRadius: 14 }}>
+              <Cover id={media.id} path={media.cover_path} title={media.title} width={104} radius={radius.sm} />
+            </View>
+            <T v="overline" c={tag === 'İZLEDİ' ? color.textMuted : color.primary} style={{ fontSize: 10, marginTop: 8 }}>{tag}</T>
+            <T v="caption" c={color.text} numberOfLines={2} style={{ marginTop: 2, fontSize: 12 }}>{media.title}</T>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+// Yıllık okuma hedefi: ilerleme çubuğu. Sahibi hedef yoksa belirleyebilir; başkaları yalnızca varsa görür.
+function GoalCard({ year, done, target, own }: { year: number; done: number; target: number | null; own: boolean }) {
+  if (!target) {
+    if (!own) return null;
+    return (
+      <Card>
+        <Overline>{`${year} okuma hedefi`}</Overline>
+        <T v="bodySm" c={color.textMuted} style={{ marginTop: 6 }}>Bu yıl kaç kitap okumak istediğini belirle, ilerlemen burada görünsün.</T>
+        <Button title="Hedef belirle" kind="secondary" onPress={() => router.push('/settings/profile')} style={{ marginTop: space[3] }} />
+      </Card>
+    );
+  }
+  const pct = Math.min(100, Math.round((done / target) * 100));
+  const reached = done >= target;
+  return (
+    <Card>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <Overline>{`${year} okuma hedefi`}</Overline>
+        <T v="caption" c={reached ? color.primary : color.textMuted}>{reached ? 'Hedefe ulaşıldı' : `%${pct}`}</T>
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: space[2] }}>
+        <T v="statMd" style={{ fontSize: 28, lineHeight: 32 }}>{done}</T>
+        <T v="statMd" c={color.textMuted} style={{ fontSize: 18, lineHeight: 32 }}>/ {target}</T>
+        <T v="caption" c={color.textMuted}>kitap</T>
+      </View>
+      <View accessible accessibilityLabel={`${done} / ${target} kitap, yüzde ${pct}`}
+        style={{ height: 10, borderRadius: 5, backgroundColor: color.border, marginTop: space[3], overflow: 'hidden' }}>
+        <View style={{ width: `${pct}%`, height: 10, borderRadius: 5, backgroundColor: color.primary, shadowColor: color.primary, shadowOpacity: 0.6, shadowRadius: 8 }} />
+      </View>
+    </Card>
   );
 }

@@ -6,6 +6,7 @@ cd "$(dirname "$0")/.."
 : "${EXPO_PUBLIC_SUPABASE_URL:?Supabase proje adresi gerekli}"
 : "${EXPO_PUBLIC_SUPABASE_ANON_KEY:?Supabase anon anahtarı gerekli}"
 export EXPO_BASE_URL="${EXPO_BASE_URL:-/Depodepo1}"
+export EXPO_PUBLIC_BASE_URL="$EXPO_BASE_URL"   # hazır kapak görselleri için alt yol
 rm -rf docs
 # .env (yerel geliştirme değerleri) bu derlemeye karışmasın
 EXPO_NO_DOTENV=1 CI=1 npx expo export --platform web --output-dir docs --clear
