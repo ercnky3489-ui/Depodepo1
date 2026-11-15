@@ -199,6 +199,7 @@ function DetailsTab({ m }: { m: MediaDetail }) {
       <View>
         {m.description ? <T v="body" c="#D5DED9">{m.description}</T> : <T v="body" c={color.textMuted}>Açıklama henüz yok.</T>}
         {gb ? <T v="caption" c={color.textFaint} style={{ marginTop: space[2] }}>Kitap bilgileri: Google Books</T> : null}
+        {m.kind === 'book' ? <BookCredits m={m} /> : null}
         <View style={{ flexDirection: 'row', gap: space[2], marginTop: space[4] }}>
           <Button title="Alıntı ekle" kind="tonal" style={{ flex: 1 }} onPress={() => router.push({ pathname: '/compose/quote', params: { mediaId: m.id } })} />
           <Button title="İnceleme yaz" kind="secondary" style={{ flex: 1 }} onPress={() => router.push({ pathname: '/compose/review', params: { mediaId: m.id } })} />
@@ -330,6 +331,23 @@ function QuotesTab({ mediaId, kind }: { mediaId: string; kind: string }) {
             </T>
           </Card>
         </Pressable>
+      ))}
+    </View>
+  );
+}
+
+const BOOK_ROLES = [['compiler', 'Derleyen'], ['editor', 'Editör'], ['translator', 'Çeviren']] as const;
+
+function BookCredits({ m }: { m: MediaDetail }) {
+  const rows = BOOK_ROLES.map(([role, label]) => ({
+    label,
+    names: m.media_contributors.filter((p) => p.role === role).sort((a, b) => a.sort_order - b.sort_order).map((p) => p.contributors.name),
+  })).filter((r) => r.names.length);
+  if (!rows.length) return null;
+  return (
+    <View style={{ marginTop: space[3], gap: 2 }}>
+      {rows.map((r) => (
+        <T key={r.label} v="bodySm" c={color.textMuted}>{r.label} <T v="label">{r.names.join(', ')}</T></T>
       ))}
     </View>
   );
