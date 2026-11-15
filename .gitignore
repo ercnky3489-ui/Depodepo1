@@ -12,3 +12,6 @@ __pycache__/
 
 # Yayınevi kapakları telifli: yerelde tutulur, depoya gönderilmez
 data/*/covers/
+
+# Claude Code kişisel ayarları
+.claude/settings.local.json
