@@ -2,11 +2,11 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  useLibraryEntry, useMedia, useRemoveFromLibrary, useMediaQuotes, useMediaReviews, useMyHistory, useSeasons, useSeriesProgress, useSetLibrary, useSimilarMedia, useToggleEpisode,
+  useLibraryEntry, useMedia, useRemoveFromLibrary, useSaveCurrentPage, useMediaQuotes, useMediaReviews, useMyHistory, useSeasons, useSeriesProgress, useSetLibrary, useSimilarMedia, useToggleEpisode,
 } from '../../src/api/media';
 import { useToggleHelpful } from '../../src/api/feed';
 import { IconBack, IconCheck, IconShare, IconThumb } from '../../src/components/icons';
@@ -190,15 +190,40 @@ function Glass({ label, onPress, children }: { label: string; onPress: () => voi
 }
 
 function PageProgress({ mediaId, current, total }: { mediaId: string; current: number | null; total: number | null }) {
-  const setLib = useSetLibrary(mediaId);
+  const save = useSaveCurrentPage(mediaId);
   const [page, setPage] = useState(current ? String(current) : '');
-  const pct = current && total ? Math.min(1, current / total) : 0;
+  const [saved, setSaved] = useState<'idle' | 'saving' | 'ok' | 'err'>('idle');
+  const focused = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Başka yerden (okuma oturumu) güncellenirse kutuyu da güncelle
+  useEffect(() => { if (!focused.current) setPage(current ? String(current) : ''); }, [current]);
+  const commit = (txt: string) => {
+    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+    const n = Number(txt);
+    if (!txt || !(n > 0)) return;
+    const v = total ? Math.min(n, total) : n;
+    if (v === current) return;
+    setSaved('saving');
+    save(v).then(() => setSaved('ok')).catch(() => setSaved('err'));
+  };
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  const shown = Number(page) || current || 0;
+  const pct = shown && total ? Math.min(1, shown / total) : 0;
   return (
     <Card style={{ marginHorizontal: space[4], marginTop: 14 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-        <T v="label" style={{ flex: 1 }}>Kaldığın sayfa</T>
-        <TextInput value={page} onChangeText={(t) => setPage(t.replace(/\D/g, '').slice(0, 5))} keyboardType="number-pad" accessibilityLabel="Kaldığın sayfa"
-          onEndEditing={() => { const n = Number(page); if (n > 0) setLib.mutate({ current_page: total ? Math.min(n, total) : n }); }}
+        <View style={{ flex: 1 }}>
+          <T v="label">Kaldığın sayfa</T>
+          <T v="caption" c={saved === 'err' ? color.danger : saved === 'ok' ? color.primary : color.textFaint}>
+            {saved === 'saving' ? 'Kaydediliyor…' : saved === 'ok' ? 'Kaydedildi' : saved === 'err' ? 'Kaydedilemedi, tekrar dene' : 'Yazınca otomatik kaydedilir'}
+          </T>
+        </View>
+        <TextInput value={page} keyboardType="number-pad" accessibilityLabel="Kaldığın sayfa" returnKeyType="done"
+          onChangeText={(t) => { const v = t.replace(/\D/g, '').slice(0, 5); setPage(v); setSaved('idle');
+            if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => commit(v), 900); }}
+          onFocus={() => { focused.current = true; }}
+          onBlur={() => { focused.current = false; commit(page); }}
+          onSubmitEditing={() => commit(page)}
           style={[inputStyle, { width: 90, height: 44, textAlign: 'center' }]} />
         {total ? <T v="caption" c={color.textMuted}>/ {total}</T> : null}
       </View>

@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCreateQuote } from '../../src/api/content';
-import { useLibraryEntry, useMedia } from '../../src/api/media';
+import { useLibraryEntry, useMedia, useSaveCurrentPage } from '../../src/api/media';
 import { Button, Cover, T } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
 import { errorMessage, supabase } from '../../src/lib/supabase';
@@ -48,13 +48,36 @@ export default function ReadingSession() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
 
-  // Başlangıç sayfası kütüphanedeki son sayfadan
+  const savePage = useSaveCurrentPage(id);
+  const pageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingPage = useRef<number | null>(null);
+
+  // Başlangıç sayfası kütüphanedeki son sayfadan (önbellekteki eski değer değil, sunucudan gelen)
   useEffect(() => {
-    if (startPage === null && entry.data !== undefined) {
+    if (startPage === null && entry.isSuccess && !entry.isFetching) {
       const p = entry.data?.current_page ?? 0;
       setStartPage(p); setPage(p);
     }
-  }, [entry.data, startPage]);
+  }, [entry.data, entry.isSuccess, entry.isFetching, startPage]);
+
+  // Sayfa değiştikçe kısa bir beklemeyle kaydet; ekrandan çıkarken bekleyeni hemen yaz
+  const flushPage = () => {
+    if (pageTimer.current) { clearTimeout(pageTimer.current); pageTimer.current = null; }
+    const p = pendingPage.current; pendingPage.current = null;
+    if (p !== null && p > 0) savePage(p).catch(() => undefined);
+  };
+  const changePage = (fn: (p: number) => number) => {
+    setPage((prev) => {
+      const next = fn(prev);
+      if (next !== prev) {
+        pendingPage.current = next;
+        if (pageTimer.current) clearTimeout(pageTimer.current);
+        pageTimer.current = setTimeout(flushPage, 700);
+      }
+      return next;
+    });
+  };
+  useEffect(() => () => flushPage(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const t = setInterval(() => setTick((n) => n + 1), 500);
@@ -92,6 +115,7 @@ export default function ReadingSession() {
   };
 
   const finish = async () => {
+    flushPage();
     if (sec < 10) { stopSound(true); router.back(); return; }
     setBusy(true);
     if (running) { acc.current += Date.now() - (since.current ?? Date.now()); since.current = null; setRunning(false); }
@@ -110,11 +134,11 @@ export default function ReadingSession() {
 
   const close = () => {
     if (sec >= 60) {
-      Alert.alert('Oturum kaydedilmedi', 'Çıkarsan bu okuma süresi kaydedilmez.', [
+      Alert.alert('Oturum kaydedilmedi', 'Çıkarsan bu okuma süresi kaydedilmez. Kaldığın sayfa yine de saklanır.', [
         { text: 'Vazgeç', style: 'cancel' },
-        { text: 'Kaydetmeden çık', style: 'destructive', onPress: () => { stopSound(true); router.back(); } },
+        { text: 'Süreyi kaydetmeden çık', style: 'destructive', onPress: () => { flushPage(); stopSound(true); router.back(); } },
       ]);
-    } else { stopSound(true); router.back(); }
+    } else { flushPage(); stopSound(true); router.back(); }
   };
 
   const prog = (sec % ROUND) / ROUND;
@@ -144,12 +168,12 @@ export default function ReadingSession() {
         <BigTimer sec={sec} prog={prog} rounds={rounds} running={running} soundId={sound ?? 'off'} label={sound ? cur.label : null} tint={cur.tint} />
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4], marginTop: space[6] }}>
-          <PageBtn label="−" onPress={() => setPage((p) => Math.max(0, p - 1))} a11y="Bir sayfa geri" />
+          <PageBtn label="−" onPress={() => changePage((p) => Math.max(0, p - 1))} a11y="Bir sayfa geri" />
           <View style={{ alignItems: 'center', minWidth: 120 }}>
             <T v="titleSm" style={{ fontVariant: ['tabular-nums'] }}>Sayfa {page}{total ? ` / ${total}` : ''}</T>
             {startPage !== null && page > startPage ? <T v="caption" c={color.primary}>+{page - startPage} sayfa bu oturumda</T> : <T v="caption" c={color.textFaint}>Okudukça ilerlet</T>}
           </View>
-          <PageBtn label="+" onPress={() => setPage((p) => (total ? Math.min(total, p + 1) : p + 1))} a11y="Bir sayfa ileri" />
+          <PageBtn label="+" onPress={() => changePage((p) => (total ? Math.min(total, p + 1) : p + 1))} a11y="Bir sayfa ileri" />
         </View>
 
         <Pressable onPress={toggle} accessibilityRole="button" accessibilityLabel={running ? 'Duraklat' : 'Devam et'}

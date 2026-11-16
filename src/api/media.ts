@@ -60,6 +60,23 @@ export function useSetLibrary(mediaId: string) {
   });
 }
 
+// Kaldığın sayfayı sessizce kaydet (titreşim ve akış yenilemesi yok). Kitap rafta yoksa "okuyorum"a eklenir.
+export function useSaveCurrentPage(mediaId: string) {
+  const uid = useUserId();
+  const qc = useQueryClient();
+  return async (page: number) => {
+    if (!uid) return;
+    const current = qc.getQueryData<LibraryEntry | null>(['library', uid, mediaId]);
+    if (current && current.current_page === page) return;
+    const status: LibraryStatus = !current || current.status === 'planned' ? 'in_progress' : current.status;
+    const { data, error } = await supabase.from('library_entries')
+      .upsert({ user_id: uid, media_id: mediaId, status, current_page: page }, { onConflict: 'user_id,media_id' }).select().single();
+    if (error) throw error;
+    qc.setQueryData(['library', uid, mediaId], data as LibraryEntry);
+    if (!current || current.status !== status) qc.invalidateQueries({ queryKey: ['me'] });
+  };
+}
+
 export function useRemoveFromLibrary(mediaId: string) {
   const uid = useUserId();
   const qc = useQueryClient();
