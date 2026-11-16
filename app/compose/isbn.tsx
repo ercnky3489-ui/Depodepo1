@@ -1,7 +1,7 @@
 // ISBN ile kitap ekleme: barkod tara veya yaz; katalogda/kaynaklarda yoksa elle ekle (moderasyona düşer).
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconBack } from '../../src/components/icons';
@@ -22,7 +22,17 @@ function toIsbn13(raw: string): string | null {
   return null;
 }
 
+// iPhone Safari'de BarcodeDetector yok; yalnızca eksikse ZXing tabanlı tamamlayıcıyı (polyfill) yükle.
+async function ensureBarcodeDetector() {
+  if (Platform.OS !== 'web' || typeof window === 'undefined' || 'BarcodeDetector' in window) return;
+  const m = await import('barcode-detector/polyfill');
+  // Okuma motoru (WASM) CDN yerine sitenin kendisinden: public/wasm/zxing_reader.wasm
+  const base = process.env.EXPO_PUBLIC_BASE_URL ?? '';
+  m.setZXingModuleOverrides({ locateFile: (path: string, prefix: string) => (path.endsWith('.wasm') ? `${base}/wasm/zxing_reader.wasm` : prefix + path) });
+}
+
 export default function IsbnAdd() {
+  const params = useLocalSearchParams<{ scan?: string }>();
   const [perm, requestPerm] = useCameraPermissions();
   const [scanning, setScanning] = useState(false);
   const [isbn, setIsbn] = useState('');
@@ -47,6 +57,15 @@ export default function IsbnAdd() {
     if (hit) { haptic.success(); router.replace(`/media/${hit.id}`); }
     else setManual(true);
   };
+
+  const startScan = async () => {
+    const p = perm?.granted ? perm : await requestPerm();
+    if (!p.granted) { Alert.alert('Kamera izni gerekli', 'Ayarlardan kamera iznini açabilir veya ISBN\'i elle yazabilirsin.'); return; }
+    try { await ensureBarcodeDetector(); } catch { /* yoksa elle yazılır */ }
+    setScanning(true);
+  };
+  // Aramadaki kamera düğmesinden gelindiyse taramayı hemen başlat
+  useEffect(() => { if (params.scan === '1') startScan(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addManual = async () => {
     setBusy(true);
@@ -76,10 +95,7 @@ export default function IsbnAdd() {
                     }} />
                 </View>
               ) : (
-                <Button title="Barkodu tara" kind="tonal" onPress={async () => {
-                  const p = perm?.granted ? perm : await requestPerm();
-                  if (p.granted) setScanning(true); else Alert.alert('Kamera izni gerekli', 'Ayarlardan kamera iznini açabilir veya ISBN\'i elle yazabilirsin.');
-                }} />
+                <Button title="Barkodu tara" kind="tonal" onPress={startScan} />
               )}
               <T v="caption" c={color.textMuted} style={{ textAlign: 'center' }}>veya</T>
               <TextInput value={isbn} onChangeText={setIsbn} keyboardType="number-pad" placeholder="978…" placeholderTextColor={color.textFaint}

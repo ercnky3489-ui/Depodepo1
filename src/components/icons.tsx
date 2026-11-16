@@ -56,6 +56,9 @@ export const IconFilm = ({ size = 20, c = color.accent }: P) => (
 export const IconMore = ({ size = 20, c = color.textMuted }: P) => (
   <Svg {...base(size)} fill={c}><Circle cx={5} cy={12} r={1.8} /><Circle cx={12} cy={12} r={1.8} /><Circle cx={19} cy={12} r={1.8} /></Svg>
 );
+export const IconCamera = ({ size = 22, c = color.primary }: P) => (
+  <Svg {...base(size)} fill="none" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><Path d="M4 8h3l2-3h6l2 3h3v11H4z" /><Circle cx={12} cy={13} r={3.5} /></Svg>
+);
 export const IconEdit = ({ size = 21, c = color.text }: P) => (
   <Svg {...base(size)} fill="none" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><Path d="M12 20h9" /><Path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></Svg>
 );

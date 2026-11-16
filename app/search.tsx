@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthorSearch, useCatalogSearch, usePeopleSearch } from '../src/api/social';
-import { IconBack, IconSearch } from '../src/components/icons';
+import { IconBack, IconCamera, IconSearch } from '../src/components/icons';
 import { Avatar, Button, ChipRow, Cover, EmptyState, Loading, T } from '../src/components/ui';
 import { color, radius, space } from '../src/theme/tokens';
 
@@ -52,6 +52,10 @@ export default function Search() {
           <IconSearch size={20} c={color.primary} />
           <TextInput value={text} onChangeText={setText} autoFocus placeholder="Kitap, yazar, film, dizi, kişi" placeholderTextColor={color.textFaint}
             accessibilityLabel="Ara" returnKeyType="search" style={{ flex: 1, color: color.text, fontFamily: 'Inter_500Medium', fontSize: 15 }} />
+          <Pressable onPress={() => router.push({ pathname: '/compose/isbn', params: { scan: '1' } })} accessibilityRole="button"
+            accessibilityLabel="ISBN barkodunu kamerayla tara" hitSlop={8} style={{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,229,160,0.12)' }}>
+            <IconCamera size={20} />
+          </Pressable>
         </View>
       </View>
       <ChipRow items={SCOPES} value={scope} onChange={setScope} counts={q.length >= 2 ? counts : undefined} />
