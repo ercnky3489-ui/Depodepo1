@@ -5,7 +5,9 @@ import { useState } from 'react';
 import { Pressable, RefreshControl, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFeed } from '../../src/api/feed';
+import { useStreak } from '../../src/api/profileDetails';
 import { useUnreadCount } from '../../src/api/social';
+import { StreakChip } from '../../src/components/Streak';
 import { ActivityCard } from '../../src/components/ActivityCard';
 import { IconBell, IconSearch } from '../../src/components/icons';
 import { Avatar, ChipRow, EmptyState, Loading, T } from '../../src/components/ui';
@@ -18,6 +20,7 @@ export default function Home() {
   const [filter, setFilter] = useState<FeedFilter>('all');
   const feed = useFeed(filter);
   const unread = useUnreadCount().data ?? 0;
+  const streak = useStreak(profile?.id ?? null).data;
   const items = feed.data?.pages.flat() ?? [];
 
   return (
@@ -27,6 +30,7 @@ export default function Home() {
           BOOK<T c={color.primary} style={{ fontFamily: 'Inter_800ExtraBold', fontSize: 23, letterSpacing: -0.7, textShadowColor: 'rgba(0,229,160,0.55)', textShadowRadius: 14 }}>FLIX</T>
         </T>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <StreakChip streak={streak} />
           <Pressable onPress={() => router.push('/search')} accessibilityRole="button" accessibilityLabel="Ara" style={iconBtn}><IconSearch /></Pressable>
           <Pressable onPress={() => router.push('/(tabs)/notifications')} accessibilityRole="button"
             accessibilityLabel={unread ? `Bildirimler, ${unread} yeni` : 'Bildirimler'} style={iconBtn}>

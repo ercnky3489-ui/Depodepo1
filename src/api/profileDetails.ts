@@ -118,3 +118,18 @@ export async function recordIsbnScan(mediaId: string, isbn: string | null): Prom
   if (error) return null;
   return data as { added_new: boolean; xp: number };
 }
+
+export interface Streak { current: number; best: number; today: boolean; start: string | null }
+
+// Okuma serisi (ardışık okuma günleri). Gizli hesaplarda null döner.
+export function useStreak(userId: string | null) {
+  return useQuery({
+    queryKey: ['streak', userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('reading_streak', { p_user: userId! });
+      if (error) throw error;
+      return (data as Streak | null) ?? null;
+    },
+  });
+}

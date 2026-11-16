@@ -8,7 +8,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActionSheetIOS, Alert, Linking, Platform, Pressable, RefreshControl, ScrollView, Share, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { REPORT_REASONS, useReport } from '../../api/content';
-import { useIsbnScans, useProfileRole, usePrivateDetails, useReadingGoal, validBirthDate } from '../../api/profileDetails';
+import { useIsbnScans, useProfileRole, usePrivateDetails, useReadingGoal, useStreak, validBirthDate } from '../../api/profileDetails';
+import { StreakCard } from '../../components/Streak';
 import { useBlock, useFollow, useMonthlyStats, useProfileSummary, useUserContent } from '../../api/social';
 import { BadgeMedal, nextTierText, TIER_COLOR, TIER_LABEL, XPCard } from '../../components/Gamification';
 import { ProfileCover } from '../../components/ProfileCover';
@@ -23,6 +24,7 @@ import type { BadgeState, MediaKind } from '../../types/db';
 const ACTION_LABEL: Record<string, string> = {
   quote_book: 'Kitap alıntısı', quote_screen: 'Film/dizi alıntısı', review_book: 'Kitap incelemesi', review_movie: 'Film incelemesi',
   review_episode: 'Bölüm incelemesi', review_helpful: 'Faydalı inceleme', content_liked: 'Beğeni', start_reading: 'Okumaya başlama', log_movie: 'Film kaydı',
+  isbn_added: 'Kataloğa yeni kitap', reading_session: 'Okuma oturumu', streak_bonus: 'Seri ödülü',
 };
 const BADGE_UNIT: Record<string, string> = {
   book_worm: 'kitap', long_reader: 'uzun kitap', film_buff: 'film', series_lover: 'bölüm', quote_master: 'alıntı', master_reviewer: 'inceleme', film_critic: 'inceleme',
@@ -76,6 +78,7 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
   const priv = usePrivateDetails(visible ? userId : null);
   const role = useProfileRole(userId).data ?? null;
   const scans = useIsbnScans(visible ? userId : null);
+  const streak = useStreak(visible ? userId : null);
 
   const library = useQuery({
     queryKey: ['shelves', userId],
@@ -196,6 +199,9 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
                     <GoalCard year={year} done={doneThisYear} target={goal.data ?? null} own={!!own} />
                   </View>
                 ) : null}
+                <View style={{ paddingHorizontal: space[4], marginTop: space[3] }}>
+                  <StreakCard streak={streak.data} own={!!own} />
+                </View>
                 {own ? (
                   <View style={{ paddingHorizontal: space[4], marginTop: space[4] }}>
                     <XPCard totalXp={p.total_xp} xpToday={summary.data.xp_today ?? 0} gain={gain.data ?? null} />
