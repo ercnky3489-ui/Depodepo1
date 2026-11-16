@@ -11,7 +11,8 @@ import { useLibraryEntry, useMedia, useSaveCurrentPage } from '../../src/api/med
 import { Button, Cover, T } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
 import { errorMessage, supabase } from '../../src/lib/supabase';
-import { getSoundVolume, playSound, setSoundVolume, SILENT, SOUNDS, SOUNDS_SUPPORTED, stopSound, type Rgb, type SoundId } from '../../src/features/session/focusSounds';
+import { getSoundVolume, prepareSounds, setSoundVolume, SILENT, SOUNDS, SOUNDS_SUPPORTED, type Rgb, type SoundId } from '../../src/features/session/focusSounds';
+import { elapsedMs, endSession, freezeSession, isRunning, setSessionPage, setSessionSound, startSession, toggleSession, useActiveSession } from '../../src/features/session/sessionStore';
 import { SceneCanvas } from '../../src/features/session/SceneCanvas';
 import { inputStyle } from '../../src/theme/inputs';
 import { color, radius, space } from '../../src/theme/tokens';
@@ -24,7 +25,7 @@ function clock(sec: number) {
   return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
-type Result = { xp: number; bonus_xp: number; streak: number; best: number; milestone: boolean };
+type Result = { xp: number; bonus_xp: number; streak: number; best: number; milestone: boolean; seconds: number; pages: number };
 
 export default function ReadingSession() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -33,13 +34,9 @@ export default function ReadingSession() {
   const qc = useQueryClient();
   const createQuote = useCreateQuote();
 
-  const [running, setRunning] = useState(true);
+  const active = useActiveSession();
+  const mine = active?.mediaId === id ? active : null;
   const [, setTick] = useState(0);
-  const acc = useRef(0);               // biriken ms (duraklatmalar arası)
-  const since = useRef<number | null>(Date.now());
-  const [startPage, setStartPage] = useState<number | null>(null);
-  const [page, setPage] = useState(0);
-  const [sound, setSound] = useState<SoundId | null>(null);
   const [vol, setVol] = useState(getSoundVolume());
   const [soundsOpen, setSoundsOpen] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
@@ -47,18 +44,39 @@ export default function ReadingSession() {
   const [notePage, setNotePage] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
+  const authors = useMemo(() => (media.data?.media_contributors ?? []).filter((c) => c.role === 'author').map((c) => c.contributors.name), [media.data]);
 
   const savePage = useSaveCurrentPage(id);
   const pageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingPage = useRef<number | null>(null);
+  const asked = useRef(false);
 
-  // Başlangıç sayfası kütüphanedeki son sayfadan (önbellekteki eski değer değil, sunucudan gelen)
   useEffect(() => {
-    if (startPage === null && entry.isSuccess && !entry.isFetching) {
-      const p = entry.data?.current_page ?? 0;
-      setStartPage(p); setPage(p);
-    }
-  }, [entry.data, entry.isSuccess, entry.isFetching, startPage]);
+    const t = setInterval(() => setTick((n) => n + 1), 500);
+    prepareSounds();
+    return () => clearInterval(t);
+  }, []);
+
+  // Oturumu başlat: bu kitap için süren oturum varsa ona devam et, yoksa kayıtlı son sayfadan başla
+  useEffect(() => {
+    if (mine || result || asked.current || !media.data || !(entry.isSuccess && !entry.isFetching)) return;
+    asked.current = true;
+    const m = media.data;
+    const begin = () => startSession({ mediaId: id, title: m.title, author: authors[0] ?? null, coverPath: m.cover_path, page: entry.data?.current_page ?? 0 });
+    if (active) {
+      Alert.alert('Süren bir oturum var', `“${active.title}” için okuma oturumu sürüyor. Yenisini başlatırsan o oturumun süresi kaydedilmez.`, [
+        { text: 'O oturuma dön', style: 'cancel', onPress: () => router.replace(`/session/${active.mediaId}`) },
+        { text: 'Yenisini başlat', style: 'destructive', onPress: begin },
+      ]);
+    } else begin();
+  }, [mine, result, media.data, entry.isSuccess, entry.isFetching, entry.data, active, authors, id]);
+
+  const running = isRunning(mine);
+  const sec = mine ? Math.floor(elapsedMs(mine) / 1000) : 0;
+  const page = mine?.page ?? 0;
+  const startPage = mine?.startPage ?? null;
+  const sound = mine?.sound ?? null;
+  const total = media.data?.book_details?.page_count ?? null;
 
   // Sayfa değiştikçe kısa bir beklemeyle kaydet; ekrandan çıkarken bekleyeni hemen yaz
   const flushPage = () => {
@@ -67,39 +85,17 @@ export default function ReadingSession() {
     if (p !== null && p > 0) savePage(p).catch(() => undefined);
   };
   const changePage = (fn: (p: number) => number) => {
-    setPage((prev) => {
-      const next = fn(prev);
-      if (next !== prev) {
-        pendingPage.current = next;
-        if (pageTimer.current) clearTimeout(pageTimer.current);
-        pageTimer.current = setTimeout(flushPage, 700);
-      }
-      return next;
-    });
+    const next = fn(page);
+    if (!mine || next === page) return;
+    setSessionPage(next);
+    pendingPage.current = next;
+    if (pageTimer.current) clearTimeout(pageTimer.current);
+    pageTimer.current = setTimeout(flushPage, 700);
   };
   useEffect(() => () => flushPage(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    const t = setInterval(() => setTick((n) => n + 1), 500);
-    return () => { clearInterval(t); stopSound(true); };
-  }, []);
-
-  const elapsedMs = acc.current + (running && since.current ? Date.now() - since.current : 0);
-  const sec = Math.floor(elapsedMs / 1000);
-  const total = media.data?.book_details?.page_count ?? null;
-  const authors = useMemo(() => (media.data?.media_contributors ?? []).filter((c) => c.role === 'author').map((c) => c.contributors.name), [media.data]);
-
-  const toggle = () => {
-    haptic.select();
-    if (running) { acc.current += Date.now() - (since.current ?? Date.now()); since.current = null; setRunning(false); }
-    else { since.current = Date.now(); setRunning(true); }
-  };
-
-  const pickSound = (s: SoundId | null) => {
-    haptic.select();
-    setSound(s);
-    if (s) playSound(s); else stopSound();
-  };
+  const toggle = () => { haptic.select(); toggleSession(); };
+  const pickSound = (s: SoundId | null) => { haptic.select(); setSessionSound(s); };
 
   const saveNote = () => {
     const body = note.trim();
@@ -114,32 +110,38 @@ export default function ReadingSession() {
     });
   };
 
+  const leave = () => { if (router.canGoBack()) router.back(); else router.replace('/(tabs)'); };
+
   const finish = async () => {
     flushPage();
-    if (sec < 10) { stopSound(true); router.back(); return; }
+    if (sec < 10) { endSession(); leave(); return; }
     setBusy(true);
-    if (running) { acc.current += Date.now() - (since.current ?? Date.now()); since.current = null; setRunning(false); }
+    const secs = freezeSession();
     const { data, error } = await supabase.rpc('finish_reading_session', {
-      p_media_id: id, p_seconds: Math.floor(acc.current / 1000), p_start_page: startPage, p_end_page: page || null,
+      p_media_id: id, p_seconds: secs, p_start_page: startPage, p_end_page: page || null,
     });
     setBusy(false);
-    if (error) { Alert.alert('Kaydedilemedi', errorMessage(error)); return; }
-    stopSound();
+    if (error) { Alert.alert('Kaydedilemedi', `${errorMessage(error)} Oturum duraklatıldı, tekrar deneyebilirsin.`); return; }
+    setResult({ ...(data as Result), seconds: secs, pages: startPage !== null && page > startPage ? page - startPage : 0 });
+    endSession();
     haptic.success();
     qc.invalidateQueries({ queryKey: ['library'] });
     qc.invalidateQueries({ queryKey: ['streak'] });
     qc.invalidateQueries({ queryKey: ['profileSummary'] });
-    setResult(data as Result);
   };
 
   const close = () => {
+    const quit = () => { flushPage(); endSession(); leave(); };
     if (sec >= 60) {
-      Alert.alert('Oturum kaydedilmedi', 'Çıkarsan bu okuma süresi kaydedilmez. Kaldığın sayfa yine de saklanır.', [
+      Alert.alert('Oturum kaydedilmedi', 'Çıkarsan bu okuma süresi kaydedilmez. Kaldığın sayfa yine de saklanır. Okumaya devam edeceksen sol üstteki oku kullan.', [
         { text: 'Vazgeç', style: 'cancel' },
-        { text: 'Süreyi kaydetmeden çık', style: 'destructive', onPress: () => { flushPage(); stopSound(true); router.back(); } },
+        { text: 'Süreyi kaydetmeden çık', style: 'destructive', onPress: quit },
       ]);
-    } else { flushPage(); stopSound(true); router.back(); }
+    } else quit();
   };
+
+  // Ekranı küçült: oturum ve ses sürer, alttaki çubuktan geri dönülür
+  const minimize = () => { flushPage(); haptic.select(); leave(); };
 
   const prog = (sec % ROUND) / ROUND;
   const rounds = Math.floor(sec / ROUND);
@@ -149,10 +151,13 @@ export default function ReadingSession() {
     <SafeAreaView style={{ flex: 1, backgroundColor: '#060A09' }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: space[4], paddingBottom: space[6], alignItems: 'center' }}>
         <View style={{ alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', height: 52 }}>
-          <Pressable onPress={close} accessibilityRole="button" accessibilityLabel="Kapat" hitSlop={10} style={{ width: 44, height: 44, justifyContent: 'center' }}>
+          <Pressable onPress={minimize} accessibilityRole="button" accessibilityLabel="Küçült, oturum sürsün" hitSlop={10} style={{ width: 44, height: 44, justifyContent: 'center' }}>
+            <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={color.textMuted} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><Path d="M6 9l6 6 6-6" /></Svg>
+          </Pressable>
+          <T v="label" c={color.textMuted} style={{ flex: 1, textAlign: 'center' }}>Okuma Oturumu</T>
+          <Pressable onPress={close} accessibilityRole="button" accessibilityLabel="Oturumu kapat" hitSlop={10} style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'flex-end' }}>
             <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={color.textMuted} strokeWidth={2} strokeLinecap="round"><Path d="M6 6l12 12M18 6L6 18" /></Svg>
           </Pressable>
-          <T v="label" c={color.textMuted} style={{ flex: 1, textAlign: 'center', marginRight: 44 }}>Okuma Oturumu</T>
         </View>
 
         {media.data ? (
@@ -222,18 +227,18 @@ export default function ReadingSession() {
         <Button title="Alıntı olarak kaydet" onPress={saveNote} disabled={note.trim().length < 2} loading={createQuote.isPending} />
       </Sheet>
 
-      <Modal visible={!!result} transparent animationType="fade" onRequestClose={() => router.back()}>
+      <Modal visible={!!result} transparent animationType="fade" onRequestClose={leave}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', padding: space[4] }}>
           {result ? (
             <View style={{ backgroundColor: color.surface, borderRadius: radius.lg, padding: space[6], alignItems: 'center', gap: space[2], borderWidth: 1, borderColor: 'rgba(0,229,160,0.4)' }}>
               <Svg width={64} height={64} viewBox="0 0 24 24"><Path d="M12 2c1 4 5 5.5 5 10a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3-1-5 1-8.5z" fill="#FF9F43" /><Path d="M12 12c.6 1.8 2.5 2.4 2.5 4.3a2.5 2.5 0 0 1-5 0c0-1.2.7-2 1.3-2.6.2 1 .7 1.4 1.2 1.4 0-1.2-.3-2 0-3.1z" fill="#FFE08A" /></Svg>
               <T style={{ fontFamily: 'Inter_800ExtraBold', fontSize: 40, lineHeight: 46, color: color.text }}>{result.streak} gün</T>
               <T v="label" c={color.textMuted}>{result.milestone ? 'Yeni seri rekoru! Kilometre taşına ulaştın.' : 'okuma serin sürüyor'}</T>
-              <T v="titleSm" style={{ marginTop: space[3] }}>{clock(Math.floor(acc.current / 1000))} okudun{startPage !== null && page > startPage ? ` · ${page - startPage} sayfa` : ''}</T>
+              <T v="titleSm" style={{ marginTop: space[3] }}>{clock(result.seconds)} okudun{result.pages ? ` · ${result.pages} sayfa` : ''}</T>
               {result.xp + result.bonus_xp > 0 ? (
                 <T v="label" c={color.primary}>+{result.xp + result.bonus_xp} XP{result.bonus_xp ? ` (seri ödülü +${result.bonus_xp})` : ''}</T>
               ) : <T v="caption" c={color.textMuted}>10 dakika ve üstü oturumlar XP kazandırır.</T>}
-              <Button title="Tamam" onPress={() => router.back()} style={{ alignSelf: 'stretch', marginTop: space[4] }} />
+              <Button title="Tamam" onPress={leave} style={{ alignSelf: 'stretch', marginTop: space[4] }} />
             </View>
           ) : null}
         </View>

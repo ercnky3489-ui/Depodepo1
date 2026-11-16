@@ -20,6 +20,7 @@ import { color, radius, space } from '../../src/theme/tokens';
 import { inputStyle } from '../../src/theme/inputs';
 import type { LibraryStatus, MediaDetail } from '../../src/types/db';
 import { EditionsSection } from '../../src/features/editions/EditionsSection';
+import { useActiveSession } from '../../src/features/session/sessionStore';
 
 const STATUS_LABELS = {
   book: { planned: 'Okuyacağım', in_progress: 'Okuyorum', completed: 'Okudum' },
@@ -41,6 +42,7 @@ export default function MediaDetailScreen() {
   const entry = useLibraryEntry(id);
   const setLib = useSetLibrary(id);
   const removeLib = useRemoveFromLibrary(id);
+  const activeSession = useActiveSession();
   const [tab, setTab] = useState<Tab>('details');
   const [rateOpen, setRateOpen] = useState(false);
   const m = media.data;
@@ -89,7 +91,7 @@ export default function MediaDetailScreen() {
             blurRadius={isBook ? 40 : 0} accessibilityIgnoresInvertColors /> : null}
           <LinearGradient colors={['rgba(8,11,10,0)', color.bg]} locations={[0, 0.92]} style={[StyleSheet.absoluteFill, { top: isBook ? 0 : 220 }]} />
           <View style={{ position: 'absolute', top: insets.top + 8, left: 12, right: 12, flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Glass label="Geri" onPress={() => router.back()}><IconBack /></Glass>
+            <Glass label="Geri" onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}><IconBack /></Glass>
             <Glass label="Paylaş" onPress={() => Share.share({ message: `${m.title} · BOOKFLIX: bookflix://media/${m.id}` })}><IconShare c={color.text} /></Glass>
           </View>
           <View style={{ position: 'absolute', left: 20, right: 20, bottom: 18 }}>
@@ -127,7 +129,7 @@ export default function MediaDetailScreen() {
 
         {m.kind === 'book' ? (
           <View style={{ paddingHorizontal: space[4], marginTop: space[3] }}>
-            <Button title="Okuma oturumu başlat" onPress={() => router.push(`/session/${m.id}`)} />
+            <Button title={activeSession?.mediaId === m.id ? "Süren oturuma dön" : "Okuma oturumu başlat"} onPress={() => router.push(`/session/${m.id}`)} />
           </View>
         ) : null}
 

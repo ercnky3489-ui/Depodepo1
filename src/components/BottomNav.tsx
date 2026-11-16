@@ -7,6 +7,7 @@ import { haptic } from '../lib/haptics';
 import { color, glow, space } from '../theme/tokens';
 import { IconBell, IconCompass, IconHome, IconPlus, IconUser } from './icons';
 import { T } from './ui';
+import { MiniSession } from '../features/session/MiniSession';
 
 const TABS = [
   { name: 'index', label: 'Ana Sayfa', Icon: IconHome },
@@ -21,7 +22,9 @@ export function BottomNav({ state, emitter, navigateToTab }: BottomTabBarProps) 
   const unread = useUnreadCount().data ?? 0;
   const active = state.routes[state.index]?.name;
   return (
-    <View accessibilityRole="tablist" style={{ flexDirection: 'row', backgroundColor: 'rgba(8,11,10,0.94)', borderTopWidth: 1, borderTopColor: '#16201C',
+    <View style={{ backgroundColor: 'rgba(8,11,10,0.94)' }}>
+    <MiniSession />
+    <View accessibilityRole="tablist" style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#16201C',
       paddingTop: space[2], paddingBottom: Math.max(insets.bottom, space[3]) }}>
       {TABS.map((tab) => {
         if (tab.name === 'share') {
@@ -58,6 +61,7 @@ export function BottomNav({ state, emitter, navigateToTab }: BottomTabBarProps) 
           </Pressable>
         );
       })}
+    </View>
     </View>
   );
 }
