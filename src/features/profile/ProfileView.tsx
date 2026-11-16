@@ -299,7 +299,7 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
                 ) : null}
                 <Shelf title="Okuyacaklarım" items={shelf((r) => r.media.kind === 'book' && r.status === 'planned')} />
                 <Shelf title="Taradığım kitaplar" items={(scans.data ?? []).map((s) => ({ media: s.media }))} />
-                <Shelf title="Şu an okuduğum" items={shelf((r) => r.media.kind === 'book' && r.status === 'in_progress')} />
+                <Shelf title="Şu an okuyorum" items={shelf((r) => r.media.kind === 'book' && r.status === 'in_progress')} />
                 <Shelf title="Okuduğum" items={shelf((r) => r.media.kind === 'book' && r.status === 'completed')} />
                 <Shelf title="İzlenen filmler" items={shelf((r) => r.media.kind === 'movie' && r.status === 'completed')} />
                 <Shelf title="Takip edilen diziler" items={shelf((r) => r.media.kind === 'series')} />
