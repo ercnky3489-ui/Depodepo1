@@ -133,3 +133,22 @@ export function useStreak(userId: string | null) {
     },
   });
 }
+
+export interface Wrapped {
+  year: number; books: number; pages: number; minutes: number; sessions: number; reading_days: number; best_streak: number;
+  top_author: { name: string; books: number } | null; top_month: number | null; quotes: number; reviews: number; xp: number;
+  top_rated: { id: string; title: string; cover_path: string | null; rating: number } | null;
+  first: { id: string; title: string; cover_path: string | null } | null;
+  covers: { id: string; title: string; cover_path: string | null }[];
+}
+
+export function useWrapped(year: number) {
+  return useQuery({
+    queryKey: ['wrapped', year],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('my_wrapped', { p_year: year });
+      if (error) throw error;
+      return data as Wrapped;
+    },
+  });
+}

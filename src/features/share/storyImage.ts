@@ -11,18 +11,18 @@ export interface QuoteStory {
   siteUrl: string;
 }
 
-const W = 1080;
-const H = 1920;
-const NEON = '#00E5A0';
-const TEAL = '#00D9C0';
-const TEXT = '#F4F8F5';
-const MUTED = '#8C9B94';
-const SERIF = 'Fraunces_400Regular, Fraunces, Georgia, serif';
-const SERIF_BOLD = 'Fraunces_700Bold, Fraunces, Georgia, serif';
-const SANS = 'Inter_600SemiBold, Inter, system-ui, sans-serif';
-const SANS_BOLD = 'Inter_800ExtraBold, Inter, system-ui, sans-serif';
+export const W = 1080;
+export const H = 1920;
+export const NEON = '#00E5A0';
+export const TEAL = '#00D9C0';
+export const TEXT = '#F4F8F5';
+export const MUTED = '#8C9B94';
+export const SERIF = 'Fraunces_400Regular, Fraunces, Georgia, serif';
+export const SERIF_BOLD = 'Fraunces_700Bold, Fraunces, Georgia, serif';
+export const SANS = 'Inter_600SemiBold, Inter, system-ui, sans-serif';
+export const SANS_BOLD = 'Inter_800ExtraBold, Inter, system-ui, sans-serif';
 
-async function ensureFonts() {
+export async function ensureFonts() {
   if (typeof document === 'undefined' || !document.fonts) return;
   await Promise.all(
     ['60px Fraunces_400Regular', '60px Fraunces_700Bold', '40px Inter_600SemiBold', '40px Inter_800ExtraBold']
@@ -30,7 +30,7 @@ async function ensureFonts() {
   );
 }
 
-function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+export function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   const lines: string[] = [];
   for (const para of text.replace(/\s+\n/g, '\n').split('\n')) {
     let line = '';
@@ -44,7 +44,7 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
   return lines;
 }
 
-function glow(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, c: string, a: number) {
+export function glow(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, c: string, a: number) {
   const g = ctx.createRadialGradient(x, y, 0, x, y, r);
   g.addColorStop(0, c.replace('A', String(a)));
   g.addColorStop(1, c.replace('A', '0'));
@@ -53,7 +53,7 @@ function glow(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, c:
 }
 
 // "BOOKFLIX" bir dairenin üst yayına dizilir (∩); altında hilal biçimli neon bir ay çizilir.
-function drawArcLogo(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
+export function drawArcLogo(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
   ctx.save();
   ctx.font = `104px ${SANS_BOLD}`;
   ctx.textBaseline = 'alphabetic';

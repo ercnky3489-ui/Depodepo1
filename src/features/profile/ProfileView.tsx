@@ -203,6 +203,20 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
                   <StreakCard streak={streak.data} own={!!own} />
                 </View>
                 {own ? (
+                  <Pressable onPress={() => router.push('/wrapped')} accessibilityRole="button" accessibilityLabel={`${year} yıl özetini aç`}
+                    style={{ marginHorizontal: space[4], marginTop: space[3], borderRadius: 20, overflow: 'hidden' }}>
+                    <LinearGradient colors={['#0E3B3A', '#123A4A', '#2E1A40']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                      style={{ padding: space[4], flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+                      <View style={{ flex: 1 }}>
+                        <T v="overline" c={color.primary}>{`${year} ÖZETİN`}</T>
+                        <T v="titleSm" style={{ marginTop: 4 }}>Yılın hikâyesi hazır</T>
+                        <T v="caption" c={color.textSoft}>Okuduğun kitaplar, serin, favorin. Paylaşılabilir.</T>
+                      </View>
+                      <T style={{ fontFamily: 'Inter_800ExtraBold', fontSize: 34, color: color.primary, textShadowColor: 'rgba(0,229,160,0.6)', textShadowRadius: 16 }}>{year}</T>
+                    </LinearGradient>
+                  </Pressable>
+                ) : null}
+                {own ? (
                   <View style={{ paddingHorizontal: space[4], marginTop: space[4] }}>
                     <XPCard totalXp={p.total_xp} xpToday={summary.data.xp_today ?? 0} gain={gain.data ?? null} />
                   </View>
