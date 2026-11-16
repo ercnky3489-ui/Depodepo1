@@ -1,22 +1,22 @@
 // Okuma oturumu: zamanlayıcı, sayfa ilerlemesi, odak sesleri, not → alıntı. Bitince seri ve XP gösterilir.
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, TextInput, useWindowDimensions, View } from 'react-native';
+import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import Svg, { Circle, Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCreateQuote } from '../../src/api/content';
 import { useLibraryEntry, useMedia } from '../../src/api/media';
 import { Button, Cover, T } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
 import { errorMessage, supabase } from '../../src/lib/supabase';
-import { getSoundVolume, playSound, setSoundVolume, SOUNDS, SOUNDS_SUPPORTED, stopSound, type SoundId } from '../../src/features/session/focusSounds';
+import { getSoundVolume, playSound, setSoundVolume, SILENT, SOUNDS, SOUNDS_SUPPORTED, stopSound, type Rgb, type SoundId } from '../../src/features/session/focusSounds';
+import { SceneCanvas } from '../../src/features/session/SceneCanvas';
 import { inputStyle } from '../../src/theme/inputs';
 import { color, radius, space } from '../../src/theme/tokens';
 
 const ROUND = 25 * 60; // halka 25 dakikalık odak turunu gösterir
-const RING = 248;
-const STROKE = 10;
 
 function clock(sec: number) {
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
@@ -119,9 +119,7 @@ export default function ReadingSession() {
 
   const prog = (sec % ROUND) / ROUND;
   const rounds = Math.floor(sec / ROUND);
-  const r = (RING - STROKE) / 2;
-  const circ = 2 * Math.PI * r;
-  const dotA = prog * 2 * Math.PI - Math.PI / 2;
+  const cur = SOUNDS.find((q) => q.id === sound) ?? SILENT;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#060A09' }}>
@@ -143,19 +141,7 @@ export default function ReadingSession() {
           </View>
         ) : null}
 
-        <View style={{ width: RING, height: RING, marginTop: space[6], alignItems: 'center', justifyContent: 'center' }}
-          accessible accessibilityLabel={`${Math.floor(sec / 60)} dakika ${sec % 60} saniye okuma`}>
-          <Svg width={RING} height={RING} style={{ position: 'absolute' }}>
-            <Circle cx={RING / 2} cy={RING / 2} r={r} stroke="#14201B" strokeWidth={STROKE} fill="none" />
-            <Circle cx={RING / 2} cy={RING / 2} r={r} stroke={color.primary} strokeWidth={STROKE} fill="none" strokeLinecap="round"
-              strokeDasharray={`${circ} ${circ}`} strokeDashoffset={circ * (1 - prog)} transform={`rotate(-90 ${RING / 2} ${RING / 2})`} />
-            <Circle cx={RING / 2 + r * Math.cos(dotA)} cy={RING / 2 + r * Math.sin(dotA)} r={7} fill="#EFFFF8" />
-          </Svg>
-          <T style={{ fontFamily: 'Inter_800ExtraBold', fontSize: 54, lineHeight: 60, color: color.text, fontVariant: ['tabular-nums'],
-            textShadowColor: running ? 'rgba(0,229,160,0.55)' : 'transparent', textShadowRadius: 18 }}>{clock(sec)}</T>
-          <T v="caption" c={color.textMuted}>{running ? 'okuyorsun' : 'duraklatıldı'}</T>
-          {rounds ? <T v="caption" c={color.primary} style={{ marginTop: 4 }}>{rounds} odak turu tamam</T> : null}
-        </View>
+        <BigTimer sec={sec} prog={prog} rounds={rounds} running={running} soundId={sound ?? 'off'} label={sound ? cur.label : null} tint={cur.tint} />
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4], marginTop: space[6] }}>
           <PageBtn label="−" onPress={() => setPage((p) => Math.max(0, p - 1))} a11y="Bir sayfa geri" />
@@ -184,20 +170,16 @@ export default function ReadingSession() {
         <Button title="Oturumu bitir" kind="secondary" onPress={finish} loading={busy} style={{ alignSelf: 'stretch', marginTop: space[3] }} />
       </ScrollView>
 
-      <Sheet visible={soundsOpen} onClose={() => setSoundsOpen(false)} title="Odak sesleri">
+      <Sheet visible={soundsOpen} onClose={() => setSoundsOpen(false)}>
+        <Pressable onPress={() => setSoundsOpen(false)} accessibilityRole="button" accessibilityLabel="Tamam" hitSlop={8}
+          style={{ position: 'absolute', top: 18, right: 16, zIndex: 2, paddingHorizontal: 16, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: '#1E2A25' }}>
+          <T v="label">Tamam</T>
+        </Pressable>
+        <T style={{ fontFamily: 'Fraunces_400Regular_Italic', fontSize: 38, lineHeight: 46, color: color.text, textAlign: 'center', marginTop: space[4] }}>{cur.label}</T>
+        <T v="bodySm" c={color.textMuted} style={{ textAlign: 'center', marginTop: -8 }}>{cur.hint}</T>
         {SOUNDS_SUPPORTED ? (
           <>
-            {[{ id: null, label: 'Kapalı', hint: 'Sessiz oku' }, ...SOUNDS].map((s) => {
-              const on = sound === s.id;
-              return (
-                <Pressable key={s.id ?? 'off'} onPress={() => pickSound(s.id as SoundId | null)} accessibilityRole="radio" accessibilityState={{ selected: on }}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], padding: 14, borderRadius: radius.md, borderWidth: 1,
-                    borderColor: on ? color.primary : '#1F2B26', backgroundColor: on ? 'rgba(0,229,160,0.1)' : 'transparent' }}>
-                  <View style={{ flex: 1 }}><T v="label" c={on ? color.primary : color.text}>{s.label}</T><T v="caption" c={color.textMuted}>{s.hint}</T></View>
-                  {on ? <T v="caption" c={color.primary}>Çalıyor</T> : null}
-                </Pressable>
-              );
-            })}
+            <SoundCards value={sound} onPick={pickSound} />
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], marginTop: space[2] }}>
               <T v="label" c={color.textMuted} style={{ flex: 1 }}>Ses düzeyi %{Math.round(vol * 100)}</T>
               <PageBtn label="−" onPress={() => { const v = Math.max(0, vol - 0.1); setVol(v); setSoundVolume(v); }} a11y="Sesi azalt" />
@@ -258,16 +240,86 @@ function Pill({ label, onPress, icon, active }: { label: string; onPress: () => 
   );
 }
 
-function Sheet({ visible, onClose, title, children }: { visible: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
+function Sheet({ visible, onClose, title, children }: { visible: boolean; onClose: () => void; title?: string; children: React.ReactNode }) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable onPress={onClose} accessibilityLabel="Kapat" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         <Pressable onPress={() => {}} style={{ backgroundColor: color.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: space[4], paddingBottom: space[8], gap: space[3] }}>
           <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#2A3A33' }} />
-          <T v="titleSm">{title}</T>
+          {title ? <T v="titleSm">{title}</T> : null}
           {children}
         </Pressable>
       </Pressable>
     </Modal>
+  );
+}
+
+const rgb = (c: Rgb, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+
+// Büyük sayaç: ince neon halka, ortada eğik dev rakamlar, arkada seçilen sesin sahnesi.
+function BigTimer({ sec, prog, rounds, running, soundId, label, tint }: {
+  sec: number; prog: number; rounds: number; running: boolean; soundId: SoundId | 'off'; label: string | null; tint: Rgb;
+}) {
+  const { width: winW } = useWindowDimensions();
+  const size = Math.min(320, winW - 40);
+  const R = size * 0.44, c = size / 2, circ = 2 * Math.PI * R;
+  const a1 = prog * 2 * Math.PI - Math.PI / 2;
+  const inner = Math.round((R - 8) * 2);
+  const blink = useSharedValue(1);
+  useEffect(() => {
+    if (running) { cancelAnimation(blink); blink.value = withTiming(1, { duration: 200 }); }
+    else blink.value = withRepeat(withTiming(0.45, { duration: 750 }), -1, true);
+  }, [running, blink]);
+  const digits = useAnimatedStyle(() => ({ opacity: blink.value }));
+  return (
+    <View style={{ width: size, height: size, marginTop: space[4], alignItems: 'center', justifyContent: 'center' }}
+      accessible accessibilityLabel={`${Math.floor(sec / 60)} dakika ${sec % 60} saniye okuma${running ? '' : ', duraklatıldı'}`}>
+      <View style={{ position: 'absolute', left: c - inner / 2, top: c - inner / 2 }}>
+        <SceneCanvas id={soundId} tint={tint} width={inner} height={inner} running={running} scale={3} opacity={running ? 0.38 : 0.15} round />
+      </View>
+      <Svg width={size} height={size} style={{ position: 'absolute' }}>
+        <Defs>
+          <RadialGradient id="tdim" cx="50%" cy="50%" r="50%">
+            <Stop offset="0" stopColor="#060A09" stopOpacity={0.8} />
+            <Stop offset="1" stopColor="#060A09" stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Circle cx={c} cy={c} r={R} fill="url(#tdim)" />
+        <Circle cx={c} cy={c} r={R} stroke="#1C2621" strokeWidth={3} fill="none" />
+        <Circle cx={c} cy={c} r={R} stroke={rgb(tint, 0.18)} strokeWidth={14} fill="none" strokeLinecap="round"
+          strokeDasharray={`${circ} ${circ}`} strokeDashoffset={circ * (1 - prog)} transform={`rotate(-90 ${c} ${c})`} />
+        <Circle cx={c} cy={c} r={R} stroke={rgb(tint)} strokeWidth={5} fill="none" strokeLinecap="round"
+          strokeDasharray={`${circ} ${circ}`} strokeDashoffset={circ * (1 - prog)} transform={`rotate(-90 ${c} ${c})`} />
+        <Circle cx={c + R * Math.cos(a1)} cy={c + R * Math.sin(a1)} r={11} fill={rgb(tint, 0.25)} />
+        <Circle cx={c + R * Math.cos(a1)} cy={c + R * Math.sin(a1)} r={7} fill="#F4F8F5" />
+      </Svg>
+      <Animated.View style={[{ alignItems: 'center' }, digits]}>
+        <T style={{ fontFamily: 'Fraunces_400Regular_Italic', fontSize: Math.round(size * (sec >= 3600 ? 0.2 : 0.27)), lineHeight: Math.round(size * 0.32),
+          color: color.text, fontVariant: ['tabular-nums'], textShadowColor: running ? rgb(tint, 0.6) : 'transparent', textShadowRadius: 24 }}>{clock(sec)}</T>
+      </Animated.View>
+      <T v="caption" c={running ? color.textMuted : color.textSoft}>{running ? (label ? `${label.toLocaleLowerCase('tr-TR')} · okuyorsun` : 'okuyorsun') : 'duraklatıldı'}</T>
+      {rounds ? <T v="caption" c={rgb(tint)} style={{ marginTop: 4 }}>{rounds} odak turu tamam</T> : null}
+    </View>
+  );
+}
+
+// Canlı ses kartları: her ses kendi küçük sahnesiyle; seçilen kart parlar.
+function SoundCards({ value, onPick }: { value: SoundId | null; onPick: (s: SoundId | null) => void }) {
+  const items = [{ id: null, label: SILENT.label, tint: SILENT.tint }, ...SOUNDS];
+  return (
+    <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: space[2] }}>
+      {items.map((s) => {
+        const on = value === s.id;
+        return (
+          <Pressable key={s.id ?? 'off'} onPress={() => onPick(s.id)} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={s.label}
+            style={({ pressed }) => ({ flexBasis: '31%', flexGrow: 1, alignItems: 'center', gap: 4, paddingTop: 8, paddingBottom: 10, borderRadius: radius.md,
+              backgroundColor: '#0F1714', borderWidth: on ? 2 : 1, borderColor: on ? color.primary : color.borderStrong,
+              shadowColor: color.primary, shadowOpacity: on ? 0.35 : 0, shadowRadius: 16, transform: [{ scale: pressed ? 0.96 : 1 }] })}>
+            <SceneCanvas id={s.id ?? 'off'} tint={s.tint} width={72} height={52} scale={0.8} opacity={on ? 1 : 0.55} />
+            <T v="label" c={on ? color.text : color.textSoft}>{s.label}</T>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }

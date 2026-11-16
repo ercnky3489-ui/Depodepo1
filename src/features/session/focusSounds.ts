@@ -2,13 +2,17 @@
 // Yalnızca web'de çalışır; diğer platformlarda SOUNDS_SUPPORTED false döner.
 import { Platform } from 'react-native';
 
-export type SoundId = 'rain' | 'fire' | 'deep' | 'library';
-export const SOUNDS: readonly { id: SoundId; label: string; hint: string }[] = [
-  { id: 'rain', label: 'Yağmur', hint: 'Cama vuran yumuşak yağmur' },
-  { id: 'fire', label: 'Şömine', hint: 'Derin uğultu ve çıtırtılar' },
-  { id: 'deep', label: 'Derin odak', hint: 'Kahverengi gürültü, dikkati toplar' },
-  { id: 'library', label: 'Kütüphane', hint: 'Sessiz salon, ara sıra sayfa sesi' },
+export type SoundId = 'rain' | 'fire' | 'waves' | 'deep' | 'library';
+export type Rgb = readonly [number, number, number];
+// tint: sayaç halkası ve sahne rengi
+export const SOUNDS: readonly { id: SoundId; label: string; hint: string; tint: Rgb }[] = [
+  { id: 'rain', label: 'Yağmur', hint: 'Cama vuran yumuşak yağmur', tint: [95, 224, 255] },
+  { id: 'fire', label: 'Şömine', hint: 'Derin uğultu ve çıtırtılar', tint: [255, 168, 90] },
+  { id: 'waves', label: 'Dalgalar', hint: 'Kıyıya vuran sakin deniz', tint: [0, 217, 192] },
+  { id: 'deep', label: 'Derin odak', hint: 'Kahverengi gürültü, dikkati toplar', tint: [170, 140, 255] },
+  { id: 'library', label: 'Kütüphane', hint: 'Sessiz salon, ara sıra sayfa sesi', tint: [243, 210, 122] },
 ];
+export const SILENT = { label: 'Kapalı', hint: 'Sessizlikte oku', tint: [0, 229, 160] as Rgb };
 
 export const SOUNDS_SUPPORTED = Platform.OS === 'web' && typeof window !== 'undefined' && 'AudioContext' in window;
 
@@ -87,6 +91,19 @@ export function playSound(id: SoundId) {
   } else if (id === 'fire') {
     loop(c, noise(c, 'brown'), [filter(c, 'lowpass', 520)], 0.7);
     every(60, 420, () => burst(c, { dur: 0.012 + Math.random() * 0.03, freq: 1800 + Math.random() * 3500, type: 'bandpass', peak: 0.15 + Math.random() * 0.45 }));
+  } else if (id === 'waves') {
+    // Dalga: gürültünün şiddeti ~11 saniyelik döngüde kabarıp çekilir
+    const surge = (buf: AudioBuffer, f: BiquadFilterNode, base: number, depth: number) => {
+      const src = c.createBufferSource(); src.buffer = buf; src.loop = true;
+      const g = c.createGain(); g.gain.value = base;
+      const lfo = c.createOscillator(); lfo.frequency.value = 0.09;
+      const lg = c.createGain(); lg.gain.value = depth;
+      lfo.connect(lg); lg.connect(g.gain);
+      src.connect(f); f.connect(g); g.connect(master!);
+      src.start(); lfo.start(); sources.push(src, lfo);
+    };
+    surge(noise(c, 'brown'), filter(c, 'lowpass', 700), 0.55, 0.45);
+    surge(noise(c, 'pink'), filter(c, 'highpass', 2200), 0.12, 0.1);
   } else if (id === 'deep') {
     loop(c, noise(c, 'brown'), [filter(c, 'lowpass', 320)], 0.95);
   } else {
