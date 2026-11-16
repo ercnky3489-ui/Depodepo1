@@ -82,3 +82,17 @@ export function useInvalidateProfile() {
     qc.invalidateQueries({ queryKey: ['readingGoal'] });
   };
 }
+
+// Profil rozeti için rol: 'admin', 'moderator' ya da null (security definer fonksiyon, yalnızca rol adı döner).
+export function useProfileRole(userId: string | null) {
+  return useQuery({
+    queryKey: ['profileRole', userId],
+    enabled: !!userId,
+    staleTime: 10 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('profile_role', { p_user: userId! });
+      if (error) throw error;
+      return (data as 'admin' | 'moderator' | null) ?? null;
+    },
+  });
+}

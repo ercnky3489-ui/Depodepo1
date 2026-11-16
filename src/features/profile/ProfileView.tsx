@@ -2,12 +2,13 @@
 // okuma listeleri, film/dizi, favoriler) · Rozetler (koleksiyon ve son başarı).
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from '@tanstack/react-query';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActionSheetIOS, Alert, Linking, Platform, Pressable, RefreshControl, ScrollView, Share, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { REPORT_REASONS, useReport } from '../../api/content';
-import { usePrivateDetails, useReadingGoal, validBirthDate } from '../../api/profileDetails';
+import { useProfileRole, usePrivateDetails, useReadingGoal, validBirthDate } from '../../api/profileDetails';
 import { useBlock, useFollow, useMonthlyStats, useProfileSummary, useUserContent } from '../../api/social';
 import { BadgeMedal, nextTierText, TIER_COLOR, TIER_LABEL, XPCard } from '../../components/Gamification';
 import { ProfileCover } from '../../components/ProfileCover';
@@ -73,6 +74,7 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
   const visible = summary.data?.restricted === false;
   const goal = useReadingGoal(visible ? userId : null, year);
   const priv = usePrivateDetails(visible ? userId : null);
+  const role = useProfileRole(userId).data ?? null;
 
   const library = useQuery({
     queryKey: ['shelves', userId],
@@ -148,8 +150,11 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
           <View style={{ padding: 5, borderRadius: 66, borderWidth: 3, borderColor: color.primary, backgroundColor: color.bg, shadowColor: color.primary, shadowOpacity: 0.35, shadowRadius: 22 }}>
             <Avatar name={name} path={p.avatar_path} size={112} />
           </View>
-          <View style={{ marginTop: -12, backgroundColor: color.primary, borderRadius: 12, paddingHorizontal: 10, height: 24, justifyContent: 'center', borderWidth: 3, borderColor: color.bg }}>
-            <T v="caption" c={color.onPrimary} style={{ fontFamily: 'Inter_800ExtraBold' }}>Sv. {p.level}</T>
+          <View style={{ marginTop: -12, flexDirection: 'row', gap: 6 }}>
+            {role ? <RoleChip role={role} /> : null}
+            <View style={{ backgroundColor: color.primary, borderRadius: 12, paddingHorizontal: 10, height: 24, justifyContent: 'center', borderWidth: 3, borderColor: color.bg }}>
+              <T v="caption" c={color.onPrimary} style={{ fontFamily: 'Inter_800ExtraBold' }}>Sv. {p.level}</T>
+            </View>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', marginTop: space[3], marginHorizontal: -space[4] }}>
             <SideInfo items={summary.data.restricted ? [] : side.left} align="right" />
@@ -526,5 +531,19 @@ function GoalCard({ year, done, target, own }: { year: number; done: number; tar
         <View style={{ width: `${pct}%`, height: 10, borderRadius: 5, backgroundColor: color.primary, shadowColor: color.primary, shadowOpacity: 0.6, shadowRadius: 8 }} />
       </View>
     </Card>
+  );
+}
+
+// Avatarın altında, seviye etiketinin yanında rol rozeti: admin altın, moderatör gümüş.
+function RoleChip({ role }: { role: 'admin' | 'moderator' }) {
+  const admin = role === 'admin';
+  return (
+    <View accessibilityRole="text" accessibilityLabel={admin ? 'Admin' : 'Moderatör'}
+      style={{ borderRadius: 12, borderWidth: 3, borderColor: color.bg, overflow: 'hidden', shadowColor: admin ? '#F3D27A' : '#CFD8D3', shadowOpacity: 0.55, shadowRadius: 10 }}>
+      <LinearGradient colors={admin ? ['#F9E7A8', '#D4A84A', '#9C7424'] : ['#F4F8F5', '#B9C6C0', '#7A8A83']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        style={{ height: 18, paddingHorizontal: 9, justifyContent: 'center' }}>
+        <T v="caption" c={admin ? '#2A1A05' : '#1A2420'} style={{ fontFamily: 'Inter_800ExtraBold', fontSize: 12 }}>{admin ? 'ADMİN' : 'MODERATÖR'}</T>
+      </LinearGradient>
+    </View>
   );
 }
