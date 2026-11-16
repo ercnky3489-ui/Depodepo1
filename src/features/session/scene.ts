@@ -16,7 +16,13 @@ export function createScene() {
 
   return function draw(x: CanvasRenderingContext2D, w: number, h: number, id: SceneId, c: Rgb, t: number, dt: number, scale = 1) {
     const k = Math.max(0.8, scale);
-    if (id === 'rain') {
+    if (id === 'storm') {
+      // Şimşek: arada bir ekran beyaza çakar, ardından sağanak
+      const L = pool('flash', 1, () => ({ next: rnd(3, 9), a: 0 }))[0]!;
+      L.next -= dt; if (L.next <= 0) { L.a = 1; L.next = rnd(6, 16); }
+      if (L.a > 0.01) { x.fillStyle = `rgba(225,232,255,${0.55 * L.a})`; x.fillRect(0, 0, w, h); L.a *= Math.pow(0.02, dt); }
+    }
+    if (id === 'rain' || id === 'storm') {
       const P = pool(id, Math.round(40 * scale), () => ({ x: rnd(0, 1), y: rnd(0, 1), v: rnd(0.6, 1.1), l: rnd(0.05, 0.11) }));
       x.strokeStyle = rgba(c, 0.7); x.lineWidth = 1.2 * Math.max(0.7, scale);
       for (const p of P) {

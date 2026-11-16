@@ -11,7 +11,7 @@ import { useLibraryEntry, useMedia, useSaveCurrentPage } from '../../src/api/med
 import { Button, Cover, T } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
 import { errorMessage, supabase } from '../../src/lib/supabase';
-import { getSoundVolume, prepareSounds, setSoundVolume, SILENT, SOUNDS, SOUNDS_SUPPORTED, type Rgb, type SoundId } from '../../src/features/session/focusSounds';
+import { getSoundVolume, setSoundVolume, SILENT, SOUNDS, SOUNDS_SUPPORTED, type Rgb, type SoundId } from '../../src/features/session/focusSounds';
 import { elapsedMs, endSession, freezeSession, isRunning, setSessionPage, setSessionSound, startSession, toggleSession, useActiveSession } from '../../src/features/session/sessionStore';
 import { SceneCanvas } from '../../src/features/session/SceneCanvas';
 import { inputStyle } from '../../src/theme/inputs';
@@ -53,7 +53,6 @@ export default function ReadingSession() {
 
   useEffect(() => {
     const t = setInterval(() => setTick((n) => n + 1), 500);
-    prepareSounds();
     return () => clearInterval(t);
   }, []);
 
@@ -205,7 +204,7 @@ export default function ReadingSession() {
           <T v="label">Tamam</T>
         </Pressable>
         <T style={{ fontFamily: 'Fraunces_400Regular_Italic', fontSize: 38, lineHeight: 46, color: color.text, textAlign: 'center', marginTop: space[4] }}>{cur.label}</T>
-        <T v="bodySm" c={color.textMuted} style={{ textAlign: 'center', marginTop: -8 }}>{cur.hint}</T>
+        <T v="bodySm" c={mine?.soundLoading ? color.primary : color.textMuted} style={{ textAlign: 'center', marginTop: -8 }}>{mine?.soundLoading ? 'Ses hazırlanıyor…' : sound && !running ? 'Oturuma devam edince çalar' : cur.hint}</T>
         {SOUNDS_SUPPORTED ? (
           <>
             <SoundCards value={sound} onPick={pickSound} />
@@ -341,7 +340,7 @@ function SoundCards({ value, onPick }: { value: SoundId | null; onPick: (s: Soun
         const on = value === s.id;
         return (
           <Pressable key={s.id ?? 'off'} onPress={() => onPick(s.id)} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={s.label}
-            style={({ pressed }) => ({ flexBasis: '31%', flexGrow: 1, alignItems: 'center', gap: 4, paddingTop: 8, paddingBottom: 10, borderRadius: radius.md,
+            style={({ pressed }) => ({ width: '31.5%', alignItems: 'center', gap: 4, paddingTop: 8, paddingBottom: 10, borderRadius: radius.md,
               backgroundColor: '#0F1714', borderWidth: on ? 2 : 1, borderColor: on ? color.primary : color.borderStrong,
               shadowColor: color.primary, shadowOpacity: on ? 0.35 : 0, shadowRadius: 16, transform: [{ scale: pressed ? 0.96 : 1 }] })}>
             <SceneCanvas id={s.id ?? 'off'} tint={s.tint} width={72} height={52} scale={0.8} opacity={on ? 1 : 0.55} />
