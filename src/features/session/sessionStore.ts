@@ -4,7 +4,8 @@
 import { useSyncExternalStore } from 'react';
 import { Platform } from 'react-native';
 import { imageUrl } from '../../lib/images';
-import { pauseSound, playSound, resumeSound, soundLabel, stopSound, type SoundId } from './focusSounds';
+import { pauseSound, playSound, resumeSound, SILENT, soundLabel, SOUNDS, stopSound, type SoundId } from './focusSounds';
+import { bookArt } from './lockArt';
 
 export type ActiveSession = {
   mediaId: string;
@@ -98,35 +99,6 @@ export function endSession() {
 }
 
 // ---------------------------------------------------------------- kilit ekranı
-// Kilit ekranı görseli: kitap kapağı, bulanık kapak zemini üzerinde kare bir görsele yerleştirilir
-// (iOS kare görsel ister; dikey kapak doğrudan verilince uygulama simgesini gösteriyor).
-const artCache = new Map<string, Promise<string | null>>();
-function squareArt(src: string): Promise<string | null> {
-  let p = artCache.get(src);
-  if (p) return p;
-  p = new Promise<string | null>((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      try {
-        const S = 512, cv = document.createElement('canvas'); cv.width = S; cv.height = S;
-        const x = cv.getContext('2d'); if (!x) return resolve(null);
-        const r = img.width / img.height;
-        x.fillStyle = '#080B0A'; x.fillRect(0, 0, S, S);
-        x.filter = 'blur(28px) brightness(0.55)'; x.drawImage(img, -40, -40, S + 80, S + 80); x.filter = 'none';
-        const h = S * 0.86, w = h * r;
-        x.shadowColor = 'rgba(0,0,0,0.6)'; x.shadowBlur = 30;
-        x.drawImage(img, (S - w) / 2, (S - h) / 2, w, h);
-        cv.toBlob((b) => resolve(b ? URL.createObjectURL(b) : null), 'image/png');
-      } catch { resolve(null); } // kapak sunucusu izin vermezse (CORS) tuval okunamaz
-    };
-    img.onerror = () => resolve(null);
-    img.src = src;
-  });
-  artCache.set(src, p);
-  return p;
-}
-
 let handlersSet = false;
 let artFor: string | null = null;
 function syncMediaSession() {
@@ -148,10 +120,12 @@ function syncMediaSession() {
   const key = `${s.mediaId}:${s.sound}`;
   if (artFor !== key) {
     artFor = key;
-    // Önce doğrudan kapakla göster, kare görsel hazır olunca onunla değiştir
+    // Önce simge, 3B kitap görseli hazır olunca (1 sn'den kısa) onunla değiştir
     const logo = new URL('icons/icon-512-v3.png', document.baseURI).href;
-    ms.metadata = meta([{ src: cover ?? logo, sizes: '512x512', type: cover ? 'image/jpeg' : 'image/png' }]);
-    if (cover) squareArt(cover).then((u) => { if (u && artFor === key && state) ms.metadata = meta([{ src: u, sizes: '512x512', type: 'image/png' }]); });
+    ms.metadata = meta([{ src: logo, sizes: '512x512', type: 'image/png' }]);
+    const tint = SOUNDS.find((q) => q.id === s.sound)?.tint ?? SILENT.tint;
+    bookArt({ key, cover, title: s.title, author: s.author, tint })
+      .then((u) => { if (u && artFor === key && state) ms.metadata = meta([{ src: u, sizes: '512x512', type: 'image/png' }]); });
   }
   ms.playbackState = s.since ? 'playing' : 'paused';
   // Kilit ekranındaki çubuk: 25 dakikalık odak turunda neredeyiz
