@@ -125,6 +125,12 @@ export default function MediaDetailScreen() {
           })}
         </View>
 
+        {m.kind === 'book' ? (
+          <View style={{ paddingHorizontal: space[4], marginTop: space[3] }}>
+            <Button title="Okuma oturumu başlat" onPress={() => router.push(`/session/${m.id}`)} />
+          </View>
+        ) : null}
+
         {m.kind === 'book' && status === 'in_progress' ? <PageProgress mediaId={id} current={entry.data?.current_page ?? null} total={m.book_details?.page_count ?? null} /> : null}
 
         {isSeries && progress.data && progress.data.total > 0 ? (

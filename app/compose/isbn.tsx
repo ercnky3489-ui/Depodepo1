@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { recordIsbnScan } from '../../src/api/profileDetails';
 import { IconBack } from '../../src/components/icons';
 import { Button, T } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
@@ -43,6 +44,16 @@ export default function IsbnAdd() {
   const [busy, setBusy] = useState(false);
   const locked = useRef(false);
 
+  // Kitap bulununca taramayı kaydet; kataloğa yeni kazandırıldıysa puanı göster, sonra kitaba git.
+  const open = async (mediaId: string, code: string) => {
+    const res = await recordIsbnScan(mediaId, code);
+    if (res?.added_new && res.xp > 0) {
+      haptic.success();
+      Alert.alert(`+${res.xp} XP`, 'Kataloğa yeni bir kitap kazandırdın. Kitap profilindeki "Taradığım kitaplar" rafına eklendi.');
+    }
+    router.replace(`/media/${mediaId}`);
+  };
+
   const lookup = async (raw: string) => {
     const code = toIsbn13(raw);
     if (!code) { Alert.alert('Geçersiz ISBN', '10 veya 13 haneli ISBN gir.'); return; }
@@ -50,11 +61,11 @@ export default function IsbnAdd() {
     // Önce BOOKFLIX baskılarında (okurların eklediği baskılar dahil), sonra harici kaynaklarda ara.
     const local = await supabase.rpc('find_by_isbn', { p_isbn: code });
     const own = !local.error ? (local.data ?? [])[0] as { media_id: string } | undefined : undefined;
-    if (own) { setBusy(false); haptic.success(); router.replace(`/media/${own.media_id}`); return; }
+    if (own) { setBusy(false); haptic.success(); await open(own.media_id, code); return; }
     const { data, error } = await supabase.functions.invoke('catalog-search', { body: { q: code, kind: 'book' } });
     setBusy(false);
     const hit = !error ? (data?.results ?? [])[0] : null;
-    if (hit) { haptic.success(); router.replace(`/media/${hit.id}`); }
+    if (hit) { haptic.success(); await open(hit.id, code); }
     else setManual(true);
   };
 
@@ -75,7 +86,7 @@ export default function IsbnAdd() {
     setBusy(false);
     if (error) { Alert.alert('Eklenemedi', errorMessage(error)); return; }
     Alert.alert('Kitap eklendi', 'Kitap moderasyon onayından sonra herkese görünecek; sen hemen kütüphanene ekleyebilirsin.');
-    router.replace(`/media/${data as string}`);
+    await open(data as string, isbn);
   };
 
   return (

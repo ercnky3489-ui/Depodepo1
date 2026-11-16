@@ -42,13 +42,13 @@ export default function Taste() {
     if (rows.length) await supabase.from('library_entries').upsert(rows, { onConflict: 'user_id,media_id', ignoreDuplicates: true });
     setBusy(false);
     qc.invalidateQueries();
-    router.replace('/(tabs)');
+    router.replace('/challenge');
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: color.bg }}>
       <View style={{ padding: space[4], gap: space[3] }}>
-        <T v="overline" c={color.primary}>2 / 2</T>
+        <T v="overline" c={color.primary}>2 / 3</T>
         <T v="displayLg">Neleri sevdin?</T>
         <T v="body" c={color.textMuted}>Okuduğun veya izlediğin en az 3 eseri seç. Önerilerin buna göre şekillenir.</T>
         <TextInput value={q} onChangeText={setQ} placeholder="Kitap, film veya dizi ara" placeholderTextColor={color.textFaint}

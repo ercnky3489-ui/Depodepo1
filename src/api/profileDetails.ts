@@ -96,3 +96,25 @@ export function useProfileRole(userId: string | null) {
     },
   });
 }
+
+// Taranan kitaplar (profilde raf). En yeni önce.
+export function useIsbnScans(userId: string | null) {
+  return useQuery({
+    queryKey: ['isbnScans', userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('isbn_scans')
+        .select('added_new, created_at, media:media_items!inner(id, title, cover_path)')
+        .eq('user_id', userId!).order('created_at', { ascending: false }).limit(60);
+      if (error) throw error;
+      return data as unknown as { added_new: boolean; created_at: string; media: { id: string; title: string; cover_path: string | null } }[];
+    },
+  });
+}
+
+// Taramayı kaydeder; kitap kataloğa bu taramayla yeni girdiyse XP döner.
+export async function recordIsbnScan(mediaId: string, isbn: string | null): Promise<{ added_new: boolean; xp: number } | null> {
+  const { data, error } = await supabase.rpc('record_isbn_scan', { p_media_id: mediaId, p_isbn: isbn });
+  if (error) return null;
+  return data as { added_new: boolean; xp: number };
+}

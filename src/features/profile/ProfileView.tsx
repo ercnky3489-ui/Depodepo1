@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActionSheetIOS, Alert, Linking, Platform, Pressable, RefreshControl, ScrollView, Share, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { REPORT_REASONS, useReport } from '../../api/content';
-import { useProfileRole, usePrivateDetails, useReadingGoal, validBirthDate } from '../../api/profileDetails';
+import { useIsbnScans, useProfileRole, usePrivateDetails, useReadingGoal, validBirthDate } from '../../api/profileDetails';
 import { useBlock, useFollow, useMonthlyStats, useProfileSummary, useUserContent } from '../../api/social';
 import { BadgeMedal, nextTierText, TIER_COLOR, TIER_LABEL, XPCard } from '../../components/Gamification';
 import { ProfileCover } from '../../components/ProfileCover';
@@ -75,6 +75,7 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
   const goal = useReadingGoal(visible ? userId : null, year);
   const priv = usePrivateDetails(visible ? userId : null);
   const role = useProfileRole(userId).data ?? null;
+  const scans = useIsbnScans(visible ? userId : null);
 
   const library = useQuery({
     queryKey: ['shelves', userId],
@@ -277,6 +278,7 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
                   </View>
                 ) : null}
                 <Shelf title="Okuyacaklarım" items={shelf((r) => r.media.kind === 'book' && r.status === 'planned')} />
+                <Shelf title="Taradığım kitaplar" items={(scans.data ?? []).map((s) => ({ media: s.media }))} />
                 <Shelf title="Şu an okuduğum" items={shelf((r) => r.media.kind === 'book' && r.status === 'in_progress')} />
                 <Shelf title="Okuduğum" items={shelf((r) => r.media.kind === 'book' && r.status === 'completed')} />
                 <Shelf title="İzlenen filmler" items={shelf((r) => r.media.kind === 'movie' && r.status === 'completed')} />

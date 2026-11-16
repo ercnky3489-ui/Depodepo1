@@ -65,7 +65,7 @@ export default function OnboardingProfile() {
     <SafeAreaView style={{ flex: 1, backgroundColor: color.bg }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: space[4], gap: space[4] }} keyboardShouldPersistTaps="handled">
-          <T v="overline" c={color.primary}>1 / 2</T>
+          <T v="overline" c={color.primary}>1 / 3</T>
           <T v="displayLg">Profilini oluştur</T>
 
           <View style={{ gap: space[2] }}>

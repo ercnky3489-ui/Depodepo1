@@ -1,3 +1,4 @@
+import '../src/lib/webAlert';
 import { Fraunces_400Regular, Fraunces_400Regular_Italic, Fraunces_600SemiBold, Fraunces_700Bold } from '@expo-google-fonts/fraunces';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -59,6 +60,9 @@ function RootNavigator() {
       <Stack.Protected guard={signedIn && onboarded}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="taste" />
+        <Stack.Screen name="challenge" options={{ animation: 'fade' }} />
+        <Stack.Screen name="session/[id]" options={{ animation: 'fade', gestureEnabled: false }} />
+        <Stack.Screen name="wrapped" options={{ animation: 'fade' }} />
         <Stack.Screen name="media/[id]" />
         <Stack.Screen name="user/[id]" />
         <Stack.Screen name="review/[id]" />
