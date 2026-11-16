@@ -121,7 +121,7 @@ function syncMediaSession() {
   if (artFor !== key) {
     artFor = key;
     // Önce simge, 3B kitap görseli hazır olunca (1 sn'den kısa) onunla değiştir
-    const logo = new URL('icons/icon-512-v3.png', document.baseURI).href;
+    const logo = new URL('icons/icon-512-v4.png', document.baseURI).href;
     ms.metadata = meta([{ src: logo, sizes: '512x512', type: 'image/png' }]);
     const tint = SOUNDS.find((q) => q.id === s.sound)?.tint ?? SILENT.tint;
     bookArt({ key, cover, title: s.title, author: s.author, tint })

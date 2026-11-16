@@ -1,11 +1,12 @@
-// Açılış: logo ortada küçükten büyüyerek gelir, sonra ekranı kaplayıp solar (~1.8 sn).
+// Açılış (~2.1 sn): gözlük zıplayarak gelir, camlar sırayla yeşil dolar, sol camda kitap belirir,
+// sağ camda oynat işareti dönerek gelir; sonra logo ekranı kaplayıp solar.
 // Ses: sayfa çevirme hışırtısı + kitap kapanma tokluğu, Web Audio ile üretilir. Tarayıcılar kullanıcı
 // dokunmadan ses çalmaya izin vermeyebilir (özellikle iPhone); o durumda sessiz geçer.
-import { useEffect } from 'react';
+import { createElement, useEffect, useRef } from 'react';
 import { Platform, StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming } from 'react-native-reanimated';
 import { color } from '../theme/tokens';
-import { LogoMark } from './LogoMark';
+import { LOGO_SVG, LogoMark } from './LogoMark';
 
 const GROW_MS = 650;
 const HOLD_MS = 350;
@@ -42,7 +43,44 @@ function playOpeningSound() {
   }
 }
 
+// Web: logonun parçaları ayrı ayrı canlandırılır (Web Animations API)
+function WebSplash({ onDone }: { onDone: () => void }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    playOpeningSound();
+    const root = ref.current;
+    const svg = root?.querySelector('svg') as SVGSVGElement | null;
+    const done = () => onDone();
+    const safety = setTimeout(done, 2800); // animasyon kaçarsa yine de kapan
+    if (!root || !svg || typeof svg.animate !== 'function') { clearTimeout(safety); done(); return; }
+    if (typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      root.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 400, delay: 600, fill: 'both' }).onfinish = done;
+      return () => clearTimeout(safety);
+    }
+    const part = (sel: string) => { const el = svg.querySelector(sel) as SVGElement | null; if (el) { el.style.transformBox = 'fill-box'; el.style.transformOrigin = 'center'; } return el; };
+    const spring = 'cubic-bezier(.3,1.5,.5,1)';
+    svg.animate([{ transform: 'scale(.2)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], { duration: 520, easing: spring, fill: 'both' });
+    [part('.logo-lens-l'), part('.logo-lens-r')].forEach((el, i) => el?.animate([{ fillOpacity: 0 }, { fillOpacity: 1 }], { duration: 300, delay: 300 + i * 200, fill: 'both' }));
+    part('.logo-book')?.animate([{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1)' }], { duration: 400, delay: 650, easing: spring, fill: 'both' });
+    part('.logo-play')?.animate([{ opacity: 0, transform: 'rotate(-180deg) scale(.3)' }, { opacity: 1, transform: 'rotate(0deg) scale(1)' }], { duration: 500, delay: 850, easing: spring, fill: 'both' });
+    svg.animate([{ transform: 'scale(1)', filter: 'drop-shadow(0 0 24px rgba(0,229,160,.45))' }, { transform: 'scale(1.6)', filter: 'none', offset: 0.15 }, { transform: 'scale(9)', filter: 'none' }], { duration: 650, delay: 1500, easing: 'cubic-bezier(.5,0,.9,.4)', fill: 'forwards', composite: 'replace' });
+    root.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 450, delay: 1700, fill: 'both' }).onfinish = () => { clearTimeout(safety); done(); };
+    return () => clearTimeout(safety);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return createElement('div', {
+    ref, role: 'img', 'aria-label': 'BOOKFLIX açılıyor',
+    style: { position: 'absolute', inset: 0, zIndex: 9999, background: color.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' },
+    dangerouslySetInnerHTML: { __html: LOGO_SVG.replace('<svg ', '<svg style="width:min(56vw,280px);height:auto;overflow:visible;filter:drop-shadow(0 0 24px rgba(0,229,160,.45))" ') },
+  });
+}
+
 export function BrandSplash({ onDone }: { onDone: () => void }) {
+  if (Platform.OS === 'web') return <WebSplash onDone={onDone} />;
+  return <NativeSplash onDone={onDone} />;
+}
+
+function NativeSplash({ onDone }: { onDone: () => void }) {
   const { width, height } = useWindowDimensions();
   const scale = useSharedValue(0.25);
   const opacity = useSharedValue(1);

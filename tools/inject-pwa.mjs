@@ -13,8 +13,8 @@ const tags = [
   '<meta name="apple-mobile-web-app-title" content="BOOKFLIX" />',
   '<meta name="mobile-web-app-capable" content="yes" />',
   `<link rel="manifest" href="${base}/manifest.webmanifest" />`,
-  `<link rel="apple-touch-icon" href="${base}/icons/touch-180-v3.png" />`,
-  `<link rel="icon" type="image/png" sizes="192x192" href="${base}/icons/icon-192-v3.png" />`,
+  `<link rel="apple-touch-icon" href="${base}/icons/touch-180-v4.png" />`,
+  `<link rel="icon" type="image/png" sizes="192x192" href="${base}/icons/icon-192-v4.png" />`,
   '<style>html,body{background:#080B0A}</style>',
 ].join('\n    ');
 
