@@ -7,11 +7,12 @@ import * as Notifications from 'expo-notifications';
 import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { registerPushToken } from '../src/api/social';
 import { AuthProvider, useAuth } from '../src/lib/auth';
+import { BrandSplash } from '../src/components/BrandSplash';
 import { color } from '../src/theme/tokens';
 
 SplashScreen.preventAutoHideAsync();
@@ -81,17 +82,20 @@ export default function RootLayout() {
     Fraunces_400Regular, Fraunces_400Regular_Italic, Fraunces_600SemiBold, Fraunces_700Bold,
     Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold,
   });
-  if (!fontsLoaded) return null;
+  const [splash, setSplash] = useState(true);
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: color.bg }}>
-      <SafeAreaProvider>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <StatusBar style="light" />
-            <RootNavigator />
-          </AuthProvider>
-        </QueryClientProvider>
-      </SafeAreaProvider>
+      {fontsLoaded ? (
+        <SafeAreaProvider>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <StatusBar style="light" />
+              <RootNavigator />
+            </AuthProvider>
+          </QueryClientProvider>
+        </SafeAreaProvider>
+      ) : null}
+      {splash ? <BrandSplash onDone={() => setSplash(false)} /> : null}
     </GestureHandlerRootView>
   );
 }
