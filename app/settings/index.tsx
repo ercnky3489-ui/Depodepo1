@@ -13,7 +13,7 @@ import { supabase } from '../../src/lib/supabase';
 import { color, radius, space } from '../../src/theme/tokens';
 
 type Settings = {
-  notify_follows: boolean; notify_likes: boolean; notify_comments: boolean; notify_badges: boolean;
+  notify_follows: boolean; notify_likes: boolean; notify_comments: boolean; notify_badges: boolean; notify_streak: boolean;
   hide_unwatched_spoilers: boolean; hide_page_numbers_default: boolean; show_activity_in_feed: boolean; allow_tagging: boolean;
 };
 
@@ -73,6 +73,7 @@ export default function SettingsScreen() {
           {toggle('notify_likes', 'Beğeniler ve faydalı oylar')}
           {toggle('notify_comments', 'Yorumlar')}
           {toggle('notify_badges', 'Rozet ve seviye')}
+          {toggle('notify_streak', 'Okuma serisi hatırlatmaları')}
         </Group>
 
         <Group title="Yasal ve KVKK">

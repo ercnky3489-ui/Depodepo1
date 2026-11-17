@@ -13,6 +13,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { registerPushToken } from '../src/api/social';
 import { AuthProvider, useAuth } from '../src/lib/auth';
 import { LiveNotifications } from '../src/features/notifications/LiveNotifications';
+import { registerServiceWorker } from '../src/lib/webPush';
 import { BrandSplash } from '../src/components/BrandSplash';
 import { color } from '../src/theme/tokens';
 
@@ -84,6 +85,7 @@ export default function RootLayout() {
     Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold,
   });
   const [splash, setSplash] = useState(true);
+  useEffect(() => { registerServiceWorker(); }, []);
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: color.bg }}>
       {fontsLoaded ? (

@@ -7,6 +7,7 @@ import { Avatar, Button, EmptyState, Loading, T } from '../../src/components/ui'
 import { relativeTime } from '../../src/lib/format';
 import { color, space } from '../../src/theme/tokens';
 import type { NotificationRow } from '../../src/types/db';
+import { PushCard } from '../../src/features/notifications/PushCard';
 import { notificationTarget as target, notificationText as text } from '../../src/features/notifications/text';
 
 export default function Notifications() {
@@ -26,6 +27,7 @@ export default function Notifications() {
       <FlatList
         data={list.data ?? []}
         keyExtractor={(n) => n.id}
+        ListHeaderComponent={<PushCard />}
         refreshControl={<RefreshControl refreshing={list.isRefetching} onRefresh={() => { void list.refetch(); }} tintColor={color.primary} />}
         ListEmptyComponent={list.isLoading ? <Loading /> : <EmptyState title="Henüz bildirim yok" body="Beğeniler, yorumlar, yeni takipçiler ve kazandığın rozetler burada görünür." />}
         renderItem={({ item: n }) => {

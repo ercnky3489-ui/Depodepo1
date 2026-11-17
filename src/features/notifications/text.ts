@@ -20,6 +20,12 @@ export function notificationText(n: NotificationRow): string {
     case 'helpful': return 'incelemeni faydalı buldu · +3 XP';
     case 'badge': return `Yeni rozet: ${BADGES[String(n.data.code)] ?? ''} · ${TIERS[Number(n.data.tier)] ?? ''}`;
     case 'level_up': return `Seviye ${n.data.level} oldun`;
+    case 'streak_reminder': {
+      const days = Number(n.data.streak ?? 0);
+      return n.data.slot === 'evening'
+        ? `${days} günlük okuma serin bitmek üzere! Bugün birkaç sayfa oku, serin bozulmasın.`
+        : `${days} günlük okuma serin seni bekliyor. Bugün kısa bir okuma oturumu açmaya ne dersin?`;
+    }
     case 'moderation': return 'Paylaşımlarından biri hakkında topluluk kuralları kararı verildi';
     default: return '';
   }
@@ -27,6 +33,7 @@ export function notificationText(n: NotificationRow): string {
 
 export function notificationTarget(n: NotificationRow): string | null {
   if (n.type === 'badge' || n.type === 'level_up') return '/(tabs)/profile';
+  if (n.type === 'streak_reminder') return '/(tabs)';
   if (n.target_type === 'profile' && n.target_id) return `/user/${n.target_id}`;
   if (n.target_type && n.target_id && ['quote', 'review', 'list'].includes(n.target_type)) return `/${n.target_type}/${n.target_id}`;
   return null;

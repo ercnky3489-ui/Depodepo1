@@ -1,4 +1,8 @@
-// Zamanlanmış görev (servis rolü, her dakika): gönderilmemiş bildirimleri Expo Push ile yollar.
+// Zamanlanmış görev (servis rolü, her dakika): gönderilmemiş bildirimleri yollar.
+//   - Expo Push: mağaza uygulamaları (push_tokens)
+//   - Web Push: tarayıcı ve ana ekrana eklenen uygulama (web_push_subscriptions); VAPID anahtarları
+//     işlev sırlarındaysa (VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT) çalışır, yoksa atlanır.
+import webpush from 'npm:web-push@3.6.7';
 import { adminClient, handler, json, requireServiceRole } from '../_shared/http.ts';
 import { buildPush, type NotificationRow } from '../_shared/pushText.ts';
 
@@ -34,6 +38,32 @@ Deno.serve(handler(async (req) => {
     }
   }
 
+  // ---- Web Push
+  const vapidPublic = Deno.env.get('VAPID_PUBLIC_KEY'), vapidPrivate = Deno.env.get('VAPID_PRIVATE_KEY');
+  let webSent = 0;
+  if (vapidPublic && vapidPrivate) {
+    webpush.setVapidDetails(Deno.env.get('VAPID_SUBJECT') ?? 'https://ercnky3489-ui.github.io/Depodepo1', vapidPublic, vapidPrivate);
+    const { data: subs } = await admin.from('web_push_subscriptions').select('id, user_id, endpoint, p256dh, auth').in('user_id', recipients);
+    const goneSubs: string[] = [];
+    for (const r of rows) {
+      // deno-lint-ignore no-explicit-any
+      const actor = r.actor as any;
+      const push = buildPush({ ...(r as unknown as NotificationRow), actor_name: actor?.display_name ?? actor?.username ?? null });
+      if (!push) continue;
+      const payload = JSON.stringify({ title: push.title, body: push.body, url: push.data.url.replace('bookflix://', ''), tag: r.type === 'streak_reminder' ? 'streak' : undefined });
+      for (const s of (subs ?? []).filter((x) => x.user_id === r.recipient_id)) {
+        try {
+          await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 6 * 3600, urgency: 'normal' });
+          webSent++;
+        } catch (e) {
+          const code = (e as { statusCode?: number }).statusCode;
+          if (code === 404 || code === 410) goneSubs.push(s.id); else console.warn('web push', code);
+        }
+      }
+    }
+    if (goneSubs.length) await admin.from('web_push_subscriptions').delete().in('id', goneSubs);
+  }
+
   const dead: string[] = [];
   for (let i = 0; i < messages.length; i += 100) {
     const chunk = messages.slice(i, i + 100);
@@ -53,5 +83,5 @@ Deno.serve(handler(async (req) => {
   }
   if (dead.length) await admin.from('push_tokens').delete().in('expo_token', dead);
   await admin.from('notifications').update({ pushed_at: new Date().toISOString() }).in('id', rows.map((r) => r.id));
-  return json({ notifications: rows.length, sent: messages.length, removed_tokens: dead.length });
+  return json({ notifications: rows.length, sent: messages.length, web_sent: webSent, removed_tokens: dead.length });
 }));

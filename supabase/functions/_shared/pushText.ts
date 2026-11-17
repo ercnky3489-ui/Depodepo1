@@ -2,7 +2,7 @@
 
 export interface NotificationRow {
   id: string;
-  type: 'follow' | 'follow_request' | 'follow_accepted' | 'like' | 'comment' | 'helpful' | 'badge' | 'level_up' | 'moderation';
+  type: 'follow' | 'follow_request' | 'follow_accepted' | 'like' | 'comment' | 'helpful' | 'badge' | 'level_up' | 'moderation' | 'streak_reminder';
   target_type: string | null;
   target_id: string | null;
   data: Record<string, unknown>;
@@ -68,6 +68,12 @@ export function buildPush(n: NotificationRow): PushMessage | null {
     }
     case 'level_up':
       return msg('Seviye atladın', `Tebrikler, Seviye ${Number(n.data.level ?? 0)} oldun.`);
+    case 'streak_reminder': {
+      const days = Number(n.data.streak ?? 0);
+      return n.data.slot === 'evening'
+        ? msg(`🔥 ${days} günlük serin bitmek üzere`, 'Bugün henüz okumadın. Birkaç sayfa oku, serin bozulmasın.')
+        : msg(`🔥 ${days} günlük okuma serin`, 'Bugünkü okumanı yaptın mı? Kısa bir oturum açıp serini sürdür.');
+    }
     case 'moderation':
       return msg('Topluluk kuralları', 'Paylaşımlarından biri hakkında karar verildi. Ayrıntılar bildirimlerinde.');
     default:
@@ -77,6 +83,7 @@ export function buildPush(n: NotificationRow): PushMessage | null {
 
 export function deepLink(n: Pick<NotificationRow, 'type' | 'target_type' | 'target_id'>): string {
   if (n.type === 'badge' || n.type === 'level_up') return 'bookflix://profile';
+  if (n.type === 'streak_reminder') return 'bookflix://';
   if (n.target_type === 'profile' && n.target_id) return `bookflix://user/${n.target_id}`;
   if (n.target_type && n.target_id) return `bookflix://${n.target_type}/${n.target_id}`;
   return 'bookflix://notifications';

@@ -7,6 +7,7 @@ import { Pressable, View } from 'react-native';
 import Animated, { SlideInUp, SlideOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
+import { Flame } from '../../components/Streak';
 import { Avatar, T } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
 import { haptic } from '../../lib/haptics';
@@ -68,15 +69,18 @@ export function LiveNotifications() {
   const name = a?.display_name ?? a?.username ?? 'Biri';
   const go = notificationTarget(n);
   const isLike = n.type === 'like' || n.type === 'helpful';
+  const isStreak = n.type === 'streak_reminder';
   return (
     <Animated.View key={toast.key} entering={SlideInUp.springify().damping(16)} exiting={SlideOutUp.duration(250)}
       style={{ position: 'absolute', top: insets.top + 8, left: space[3], right: space[3], zIndex: 9000 }} accessibilityLiveRegion="polite">
       <Pressable onPress={() => { setToast(null); router.push((go ?? '/(tabs)/notifications') as never); }} accessibilityRole="button"
-        accessibilityLabel={`${name}${toast.more ? ` ve ${toast.more} kişi daha` : ''} ${notificationText(n)}. Aç`}
+        accessibilityLabel={`${n.type === 'streak_reminder' ? 'Okuma serin:' : `${name}${toast.more ? ` ve ${toast.more} kişi daha` : ''}`} ${notificationText(n)}. Aç`}
         style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space[3], padding: 12, borderRadius: radius.lg,
           backgroundColor: 'rgba(17,25,22,0.97)', borderWidth: 1, borderColor: 'rgba(0,229,160,0.45)',
           shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 20, transform: [{ scale: pressed ? 0.98 : 1 }] })}>
-        <View>
+        {isStreak ? (
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,159,67,0.15)', alignItems: 'center', justifyContent: 'center' }}><Flame size={26} /></View>
+        ) : <View>
           <Avatar name={name} path={a?.avatar_path ?? null} size={40} />
           <View style={{ position: 'absolute', right: -4, bottom: -4, width: 20, height: 20, borderRadius: 10, backgroundColor: isLike ? '#FF5C7A' : color.primary,
             alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#111916' }}>
@@ -85,9 +89,9 @@ export function LiveNotifications() {
                 : <Path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z" fill="#080B0A" />}
             </Svg>
           </View>
-        </View>
+        </View>}
         <View style={{ flex: 1, minWidth: 0 }}>
-          <T v="label" numberOfLines={1}>{name}{toast.more ? <T v="label" c={color.textMuted}> ve {toast.more} kişi daha</T> : null}</T>
+          <T v="label" numberOfLines={1}>{isStreak ? 'Okuma serin' : name}{!isStreak && toast.more ? <T v="label" c={color.textMuted}> ve {toast.more} kişi daha</T> : null}</T>
           <T v="bodySm" c={color.textSoft} numberOfLines={2}>{notificationText(n)}</T>
         </View>
       </Pressable>
