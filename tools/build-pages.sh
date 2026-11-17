@@ -7,6 +7,8 @@ cd "$(dirname "$0")/.."
 : "${EXPO_PUBLIC_SUPABASE_ANON_KEY:?Supabase anon anahtarı gerekli}"
 export EXPO_BASE_URL="${EXPO_BASE_URL:-/Depodepo1}"
 export EXPO_PUBLIC_BASE_URL="$EXPO_BASE_URL"   # hazır kapak görselleri için alt yol
+# Web Push açık anahtarı (gizli değil; eşi olan özel anahtar yalnızca Supabase işlev sırlarında durur)
+export EXPO_PUBLIC_VAPID_PUBLIC_KEY="${EXPO_PUBLIC_VAPID_PUBLIC_KEY:-BGD2RRZ6aLy2yzJffkpuNJkfrbzAWrKE2YpLkTAfp9x1C7ck3xPFX4ztGzsglmuaSPezOuRC9DgHDdylI25NwhU}"
 rm -rf docs
 # .env (yerel geliştirme değerleri) bu derlemeye karışmasın
 EXPO_NO_DOTENV=1 CI=1 npx expo export --platform web --output-dir docs --clear
