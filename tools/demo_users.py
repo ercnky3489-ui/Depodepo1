@@ -5,6 +5,7 @@ BOOKFLIX demo kullanıcıları: oluştur / kaldır.
   python tools/demo_users.py --create [--count 50] [--follow-user <kullanıcı-adı>]
   python tools/demo_users.py --remove
   python tools/demo_users.py --status
+  python tools/demo_users.py --daily [--like-user <kullanıcı-adı>]   # günlük: 20 yeni demo hesap, ~20 alıntı/inceleme
 
 Demo kullanıcılar auth.users'ta app_metadata.demo = true ile oluşturulur, e-postaları
 demo-NN@demo.bookflix.invalid biçimindedir, şifreleri yoktur (giriş yapılamaz) ve profillerinde
@@ -64,6 +65,39 @@ QUOTES = [
     "Çocukluk, insanın ömür boyu geri dönmeye çalıştığı bir başkenttir.",
     "Ağlamak da bir anlatma biçimidir; kelimeler yetmediğinde gözyaşı konuşur.",
     "Sınır koymak, kapıyı kapatmak değil; kimin hangi odaya gireceğine karar vermektir.",
+]
+# Günlük üretimde tekrar az olsun diye ek cümleler (yine demo için yazılmıştır, kitaplardan alıntı değildir)
+MORE_QUOTES = [
+    "Bir kitabı bitirmek, bir yolculuktan dönmek gibidir; eşyalar aynı, bakış başka.",
+    "İnsanın kendine söylediği yalanlar, başkalarına söylediklerinden daha uzun ömürlüdür.",
+    "Acele eden okur kelimeleri görür, sabreden okur aralarındaki boşluğu.",
+    "Hafıza bir arşiv değil, her gün yeniden yazılan bir mektuptur.",
+    "Bazı sorular cevap için değil, insanı yolda tutmak için sorulur.",
+    "Kim olduğumuzu en iyi, neyi kaybetmekten korktuğumuz anlatır.",
+    "Yalnızlık, insanın kendi sesine alışmasıdır.",
+    "Her şehir, içinde yaşayanların vazgeçtiği hayallerle büyür.",
+    "Bir cümlenin gücü, çoğu zaman söylemediği şeyde saklıdır.",
+    "Umut, karanlıkta yürürken bir sonraki adımı görebilmektir; yolun sonunu değil.",
+    "İnsan, anlatılmayı bekleyen bir hikâyenin hem yazarı hem okurudur.",
+    "Geçmişle barışmak, onu unutmak değil, onunla aynı masaya oturabilmektir.",
+    "Sevgi, ayrıntıları hatırlamaktır.",
+    "En uzun yolculuklar, odadan hiç çıkmadan yapılanlardır.",
+    "Bir toplumu anlamak için, çocuklarına hangi masalları anlattığına bakmak yeter.",
+    "Korku, bilinmeyenin değil, bildiğimizi kaybetmenin adıdır.",
+    "Kelimeler bitince geriye bakışlar kalır; onlar da yetmezse sessizlik.",
+    "Kendini affetmek, başkalarını affetmekten daha uzun sürer.",
+    "Her kitap, okurunu biraz değiştirir; asıl hikâye kapak kapandıktan sonra başlar.",
+    "Bir insanın evine değil, kitaplığına bakarsan onu tanırsın.",
+    "Değişmek için önce neyi koruyacağına karar vermelisin.",
+    "Zamanı durduramayız ama ona dikkat edebiliriz; bu da bir tür yavaşlamaktır.",
+    "Gürültünün ortasında düşünebilmek, en kıymetli özgürlüklerden biridir.",
+    "İyi bir hikâye, okurunu yalnız bırakmaz; kötü bir hikâye ise hiç yanına gelmez.",
+    "Hatalarımız, en dürüst öğretmenlerimizdir; sadece sesleri biraz yüksektir.",
+    "Bir dostluk, birlikte susabildiğiniz yerde başlar.",
+    "Merak, insanın içindeki en eski pusuladır.",
+    "Uzaklaştıkça netleşen şeyler vardır: eski evler, eski aşklar, eski kendimiz.",
+    "Bir fikre sahip olmak kolaydır; onu değiştirebilmek cesaret ister.",
+    "Okumak, aynı anda birçok hayat yaşamanın en sessiz yoludur.",
 ]
 TOPIC_QUOTES = [
     "Eşitlik talebi, herkesin payına düşeni gerçekten bilmesiyle başlar.",
@@ -233,10 +267,73 @@ def build_sql(users: list[tuple[str, str]], books: list[str], follow_user: str |
     return "\n".join(out)
 
 
+def build_daily_sql(users: list[tuple[str, str]], books: list[str], like_user: str | None, rnd: random.Random, tag: str) -> str:
+    """Günlük üretim: her hesap 1 (bazen 2) içerik paylaşır; içerikler günün son saatlerine yayılır.
+    Hesaplar birbirini ve son günlerin demo içeriklerini beğenir; --like-user verilirse o kişinin içeriklerini de."""
+    pool = QUOTES + MORE_QUOTES
+    out = ["begin;"]
+    names = rnd.sample([(f, l) for f in FIRST for l in LAST], len(users))
+    for (uid, _), (first, last), i in zip(users, names, range(1, len(users) + 1)):
+        uname = f"demo_{tag}{slug(first + last)}{i:02d}"[:24]
+        out.append(f"update public.profiles set username={lit(uname)}, display_name={lit(first + ' ' + last[0] + '.')}, "
+                   f"bio={lit('Demo hesap · ' + rnd.choice(BIOS))}, onboarded_at=now() where id='{uid}';")
+    ago = lambda: f"now() - interval '{rnd.randint(0, 9)} hours {rnd.randint(0, 59)} minutes'"
+    for uid, _ in users:
+        mine = rnd.sample(books, min(len(books), rnd.randint(2, 3)))
+        posts = 2 if rnd.random() < 0.12 else 1
+        for k, mid in enumerate(mine):
+            done = k < posts and rnd.random() < 0.45  # inceleme yazılacaksa kitap bitmiş olur
+            status = "completed" if done else rnd.choice(["completed", "in_progress", "in_progress", "planned"])
+            rating = rnd.randint(6, 10) if status == "completed" else None
+            out.append(f"insert into public.library_entries (user_id, media_id, status, rating) values ('{uid}', '{mid}', "
+                       f"'{status}', {rating if rating else 'null'}) on conflict do nothing;")
+            if k >= posts:
+                continue
+            if done:
+                body = " ".join([rnd.choice(REVIEW_OPEN).format(t="Bu kitap")] + rnd.sample(REVIEW_MID, 3) + [rnd.choice(REVIEW_END)])
+                out.append(f"insert into public.reviews (user_id, media_id, title, body, rating, has_spoiler, created_at) values "
+                           f"('{uid}', '{mid}', {lit(rnd.choice(TITLES))}, {lit(body)}, {rating}, false, {ago()});")
+            else:
+                out.append(f"insert into public.quotes (user_id, media_id, body, page_number, created_at) values ('{uid}', '{mid}', "
+                           f"{lit(rnd.choice(pool))}, {rnd.randint(9, 340)}, {ago()});")
+    ids = [u for u, _ in users]
+    arr = "array[" + ",".join(f"'{u}'::uuid" for u in ids) + "]"
+    # Takip: yeni hesaplar birbirini ve önceki demo hesapları takip eder
+    out.append(f"insert into public.follows (follower_id, followee_id, status) select a, b, 'accepted' from unnest({arr}) a, "
+               f"lateral (select u.id b from auth.users u where u.raw_app_meta_data->>'demo' = 'true' and u.id <> a order by random() limit 5) x "
+               f"on conflict do nothing;")
+    # Beğeni: son 3 günün demo alıntıları ve incelemeleri
+    out.append(f"insert into public.likes (user_id, target_type, target_id) select a, 'quote', q.id from unnest({arr}) a, "
+               f"lateral (select q.id from public.quotes q join auth.users u on u.id = q.user_id where u.raw_app_meta_data->>'demo' = 'true' "
+               f"and q.user_id <> a and q.created_at > now() - interval '3 days' order by random() limit 4) q on conflict do nothing;")
+    out.append(f"insert into public.review_helpful_votes (user_id, review_id) select a, r.id from unnest({arr}) a, "
+               f"lateral (select r.id from public.reviews r join auth.users u on u.id = r.user_id where u.raw_app_meta_data->>'demo' = 'true' "
+               f"and r.user_id <> a and r.created_at > now() - interval '3 days' order by random() limit 2) r on conflict do nothing;")
+    if like_user:
+        who = f"(select id from public.profiles where username = {lit(like_user)})"
+        # Kişinin son 15 alıntısı/incelemesinden her hesap rastgele birkaçını beğenir; birkaç hesap da takip eder
+        out.append(f"insert into public.likes (user_id, target_type, target_id) select a, 'quote', q.id from unnest({arr}) a, "
+                   f"lateral (select id from (select id from public.quotes where user_id = {who} order by created_at desc limit 15) t "
+                   f"where random() < 0.6) q on conflict do nothing;")
+        out.append(f"insert into public.review_helpful_votes (user_id, review_id) select a, r.id from unnest({arr}) a, "
+                   f"lateral (select id from (select id from public.reviews where user_id = {who} order by created_at desc limit 15) t "
+                   f"where random() < 0.5) r on conflict do nothing;")
+        out.append(f"insert into public.follows (follower_id, followee_id, status) select a, {who}, 'accepted' from unnest({arr}) a "
+                   f"where random() < 0.3 and {who} is not null on conflict do nothing;")
+    out.append("update public.activities a set created_at = q.created_at from public.quotes q where a.object_id = q.id and q.user_id = any(" + arr + ");")
+    out.append("update public.activities a set created_at = r.created_at from public.reviews r where a.object_id = r.id and r.user_id = any(" + arr + ");")
+    out.append(f"update public.activities set created_at = now() - (random() * interval '9 hours') where actor_id = any({arr}) and object_type = 'media';")
+    out.append(f"delete from public.activities where actor_id = any({arr}) and verb in ('liked', 'followed');")
+    out.append("commit;")
+    return "\n".join(out)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="BOOKFLIX demo kullanıcıları")
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--create", action="store_true"); g.add_argument("--remove", action="store_true"); g.add_argument("--status", action="store_true")
+    g.add_argument("--daily", action="store_true", help="Günlük üretim: --count (varsayılan 20) yeni demo hesap, kişi başı ~1 içerik")
+    ap.add_argument("--like-user", help="--daily ile: bu kullanıcının alıntı ve incelemeleri beğenilsin")
     ap.add_argument("--count", type=int, default=None, help="Varsayılan 50; --topic ile 30")
     ap.add_argument("--topic", action="store_true", help="Yalnızca sosyalizm/komünizm temalı kitaplar ve bu konuya uygun alıntılar")
     ap.add_argument("--append", action="store_true", help="Mevcut demo kullanıcıları silinmeden yenilerini ekle")
@@ -256,6 +353,30 @@ def main() -> int:
     if a.remove:
         print("silinen demo kullanıcı:", t.sql(f"with d as (delete from auth.users where {demo_where} returning 1) select count(*) from d"))
         print("kalan:", t.sql(status_sql)); return 0
+    if a.daily:
+        import datetime
+        day = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))  # İstanbul günü
+        tag = "g" + day.strftime("%m%d")
+        if t.sql(f"select count(*) from auth.users where email like 'demo-{tag}%@{DEMO_DOMAIN}'").strip() not in ("0", ""):
+            print(f"Bugünün demo hesapları ({tag}) zaten oluşturulmuş; atlanıyor."); print("toplam:", t.sql(status_sql)); return 0
+        books = [x for x in t.sql("select id from public.media_items where kind = 'book' and cover_path is not null").split() if x]
+        if len(books) < 6:
+            raise SystemExit("Katalogda yeterli kitap yok.")
+        api_url, key = t.admin()
+        users = create_auth_users(api_url, key, a.count or 20, tag + "-")
+        try:
+            t.sql(build_daily_sql(users, books, a.like_user, random.Random(), tag))
+        except SystemExit:
+            delete_auth_users(api_url, key, users)
+            raise
+        today = t.sql(f"select (select count(*) from public.quotes q join auth.users u on u.id=q.user_id where u.email like 'demo-{tag}%') || ' alıntı, ' || "
+                      f"(select count(*) from public.reviews r join auth.users u on u.id=r.user_id where u.email like 'demo-{tag}%') || ' inceleme'")
+        print(f"{len(users)} yeni demo hesap ({tag}): {today}")
+        if a.like_user:
+            print(f"{a.like_user} için bugün gelen beğeni:", t.sql(
+                f"select count(*) from public.notifications n join auth.users u on u.id = n.actor_id where u.email like 'demo-{tag}%' "
+                f"and n.recipient_id = (select id from public.profiles where username = {lit(a.like_user)})"))
+        print("toplam:", t.sql(status_sql)); return 0
     tag, quotes_pool = "", None
     if a.topic:
         tag, quotes_pool = "s", TOPIC_QUOTES
