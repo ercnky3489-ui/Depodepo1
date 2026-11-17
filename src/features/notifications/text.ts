@@ -21,6 +21,7 @@ export function notificationText(n: NotificationRow): string {
     case 'badge': return `Yeni rozet: ${BADGES[String(n.data.code)] ?? ''} · ${TIERS[Number(n.data.tier)] ?? ''}`;
     case 'level_up': return `Seviye ${n.data.level} oldun`;
     case 'streak_reminder': {
+      if (typeof n.data.title === 'string' && typeof n.data.body === 'string') return `${n.data.title} ${n.data.body}`;
       const days = Number(n.data.streak ?? 0);
       return n.data.slot === 'evening'
         ? `${days} günlük okuma serin bitmek üzere! Bugün birkaç sayfa oku, serin bozulmasın.`

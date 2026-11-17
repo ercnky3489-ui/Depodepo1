@@ -91,8 +91,8 @@ export function LiveNotifications() {
           </View>
         </View>}
         <View style={{ flex: 1, minWidth: 0 }}>
-          <T v="label" numberOfLines={1}>{isStreak ? 'Okuma serin' : name}{!isStreak && toast.more ? <T v="label" c={color.textMuted}> ve {toast.more} kişi daha</T> : null}</T>
-          <T v="bodySm" c={color.textSoft} numberOfLines={2}>{notificationText(n)}</T>
+          <T v="label" numberOfLines={1}>{isStreak ? String(n.data.title ?? 'Okuma serin') : name}{!isStreak && toast.more ? <T v="label" c={color.textMuted}> ve {toast.more} kişi daha</T> : null}</T>
+          <T v="bodySm" c={color.textSoft} numberOfLines={2}>{isStreak && typeof n.data.body === 'string' ? n.data.body : notificationText(n)}</T>
         </View>
       </Pressable>
     </Animated.View>

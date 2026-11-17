@@ -69,6 +69,7 @@ export function buildPush(n: NotificationRow): PushMessage | null {
     case 'level_up':
       return msg('Seviye atladın', `Tebrikler, Seviye ${Number(n.data.level ?? 0)} oldun.`);
     case 'streak_reminder': {
+      if (typeof n.data.title === 'string' && typeof n.data.body === 'string') return msg(n.data.title, n.data.body);
       const days = Number(n.data.streak ?? 0);
       return n.data.slot === 'evening'
         ? msg(`🔥 ${days} günlük serin bitmek üzere`, 'Bugün henüz okumadın. Birkaç sayfa oku, serin bozulmasın.')
