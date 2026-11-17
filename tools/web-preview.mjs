@@ -5,6 +5,7 @@
 //   npm run web:preview          (önce: npx supabase start, sonra npm run web:build)
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import http from 'node:http';
+import net from 'node:net';
 import path from 'node:path';
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -15,7 +16,7 @@ const FUNCTIONS = process.env.FUNCTIONS_API ? new URL(process.env.FUNCTIONS_API)
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ttf': 'font/ttf', '.ico': 'image/x-icon', '.map': 'application/json', '.webmanifest': 'application/manifest+json', '.wasm': 'application/wasm' };
 
-http.createServer((req, res) => {
+const server = http.createServer((req, res) => {
   if (req.url.startsWith('/sb/')) {
     const target = FUNCTIONS && req.url.startsWith('/sb/functions/v1/') ? FUNCTIONS : API;
     const headers = { ...req.headers, host: target.host };
@@ -36,4 +37,16 @@ http.createServer((req, res) => {
   }
   res.writeHead(200, { 'content-type': TYPES[path.extname(file)] ?? 'application/octet-stream', 'cache-control': 'no-cache' });
   createReadStream(file).pipe(res);
-}).listen(PORT, () => console.log(`BOOKFLIX önizleme: http://localhost:${PORT}  (API → ${API.origin})`));
+});
+// Canlı güncellemeler (Realtime) WebSocket kullanır: /sb/realtime/... bağlantılarını da API'ye aktar
+server.on('upgrade', (req, socket, head) => {
+  if (!req.url.startsWith('/sb/')) { socket.destroy(); return; }
+  const up = net.connect(Number(API.port || 80), API.hostname, () => {
+    const lines = [`${req.method} ${req.url.slice(3)} HTTP/1.1`];
+    for (const [k, v] of Object.entries({ ...req.headers, host: API.host })) lines.push(`${k}: ${v}`);
+    up.write(lines.join('\r\n') + '\r\n\r\n'); if (head?.length) up.write(head);
+    up.pipe(socket); socket.pipe(up);
+  });
+  up.on('error', () => socket.destroy()); socket.on('error', () => up.destroy());
+});
+server.listen(PORT, () => console.log(`BOOKFLIX önizleme: http://localhost:${PORT}  (API → ${API.origin})`));

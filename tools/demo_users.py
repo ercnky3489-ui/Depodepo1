@@ -311,15 +311,17 @@ def build_daily_sql(users: list[tuple[str, str]], books: list[str], like_user: s
                f"and r.user_id <> a and r.created_at > now() - interval '3 days' order by random() limit 2) r on conflict do nothing;")
     if like_user:
         who = f"(select id from public.profiles where username = {lit(like_user)})"
-        # Kişinin son 15 alıntısı/incelemesinden her hesap rastgele birkaçını beğenir; birkaç hesap da takip eder
-        out.append(f"insert into public.likes (user_id, target_type, target_id) select a, 'quote', q.id from unnest({arr}) a, "
+        # Kişinin son 15 alıntısı/incelemesinden her hesap rastgele birkaçını beğenir, birkaç hesap da takip eder.
+        # Hepsi kuyruğa yazılır ve önümüzdeki 3 saate yayılır: beğeniler tek seferde değil, geldikçe bildirim olur.
+        due = "now() + random() * interval '180 minutes'"
+        out.append(f"insert into public.demo_action_queue (actor_id, kind, target_id, due_at) select a, 'like_quote', q.id, {due} from unnest({arr}) a, "
                    f"lateral (select id from (select id from public.quotes where user_id = {who} order by created_at desc limit 15) t "
-                   f"where random() < 0.6) q on conflict do nothing;")
-        out.append(f"insert into public.review_helpful_votes (user_id, review_id) select a, r.id from unnest({arr}) a, "
+                   f"where random() < 0.6) q;")
+        out.append(f"insert into public.demo_action_queue (actor_id, kind, target_id, due_at) select a, 'helpful', r.id, {due} from unnest({arr}) a, "
                    f"lateral (select id from (select id from public.reviews where user_id = {who} order by created_at desc limit 15) t "
-                   f"where random() < 0.5) r on conflict do nothing;")
-        out.append(f"insert into public.follows (follower_id, followee_id, status) select a, {who}, 'accepted' from unnest({arr}) a "
-                   f"where random() < 0.3 and {who} is not null on conflict do nothing;")
+                   f"where random() < 0.5) r;")
+        out.append(f"insert into public.demo_action_queue (actor_id, kind, target_id, due_at) select a, 'follow', {who}, {due} from unnest({arr}) a "
+                   f"where random() < 0.3 and {who} is not null;")
     out.append("update public.activities a set created_at = q.created_at from public.quotes q where a.object_id = q.id and q.user_id = any(" + arr + ");")
     out.append("update public.activities a set created_at = r.created_at from public.reviews r where a.object_id = r.id and r.user_id = any(" + arr + ");")
     out.append(f"update public.activities set created_at = now() - (random() * interval '9 hours') where actor_id = any({arr}) and object_type = 'media';")
@@ -373,9 +375,8 @@ def main() -> int:
                       f"(select count(*) from public.reviews r join auth.users u on u.id=r.user_id where u.email like 'demo-{tag}%') || ' inceleme'")
         print(f"{len(users)} yeni demo hesap ({tag}): {today}")
         if a.like_user:
-            print(f"{a.like_user} için bugün gelen beğeni:", t.sql(
-                f"select count(*) from public.notifications n join auth.users u on u.id = n.actor_id where u.email like 'demo-{tag}%' "
-                f"and n.recipient_id = (select id from public.profiles where username = {lit(a.like_user)})"))
+            print(f"{a.like_user} için önümüzdeki 3 saate yayılan beğeni/takip:", t.sql(
+                f"select count(*) from public.demo_action_queue q join auth.users u on u.id = q.actor_id where u.email like 'demo-{tag}%'"))
         print("toplam:", t.sql(status_sql)); return 0
     tag, quotes_pool = "", None
     if a.topic:

@@ -12,6 +12,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { registerPushToken } from '../src/api/social';
 import { AuthProvider, useAuth } from '../src/lib/auth';
+import { LiveNotifications } from '../src/features/notifications/LiveNotifications';
 import { BrandSplash } from '../src/components/BrandSplash';
 import { color } from '../src/theme/tokens';
 
@@ -91,6 +92,7 @@ export default function RootLayout() {
             <AuthProvider>
               <StatusBar style="light" />
               <RootNavigator />
+              <LiveNotifications />
             </AuthProvider>
           </QueryClientProvider>
         </SafeAreaProvider>
