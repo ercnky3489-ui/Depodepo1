@@ -1,0 +1,6 @@
+{
+  "name": "icra-borclu-arastirma-tests",
+  "private": true,
+  "description": "HX (İstanbul Varlık · UYAP & Haciz) kabul testleri. Kullanım: npm i && node hx.test.js <uygulama.html>",
+  "dependencies": { "xlsx": "0.18.5" }
+}
