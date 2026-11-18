@@ -2,7 +2,7 @@
    SENTETİK veri; kolon adları HX içe aktarıcısının tanıdığı HANSOFT başlıklarıdır. Uygulama http üzerinden açılır
    (Chromium file:// adreslerinde yenilemede localStorage yazımlarını ara sıra kaybediyor — lsprobe.js). */
 const {chromium}=require('playwright');const fs=require('fs'),path=require('path'),http=require('http');const XLSX=require('xlsx');
-const APP=path.resolve(process.argv[2]||'../out18.html');const OUT=path.join(__dirname,'fxhx');fs.mkdirSync(OUT,{recursive:true});
+const APP=path.resolve(process.argv[2]||'../index.html');const OUT=path.join(__dirname,'fxhx');fs.mkdirSync(OUT,{recursive:true});
 const book=(name,aoa)=>{const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),'HANSOFT');const p=path.join(OUT,name);XLSX.writeFile(wb,p);return p};
 const TC={A:'10000000146',B:'20000000214',C:'30000000378',E:'40000000442',F:'50000000506'};
 const H=['Kurum','Dosya Ref','Uyap Dosya ID','Kişikurum ID','İcra Dairesi','İcra No','Dosya ID','Borçlu Adı','Borçlu TCKN','Borçlu VKN','Borçlu Türü','Toplam Alacak','Dosya Durumu','Dosya Aşama','Kesinleşme Durumu','Tebliğ Tarihi'];
@@ -48,7 +48,7 @@ let pass=0,fail=0;const ok=(c,m,x)=>{if(c){pass++;console.log('  ✓ '+m)}else{f
 
   console.log('\n2) Kesinleşme dosya–borçlu bazında; kapalı / vekilsiz dosya');
   const eng=Object.fromEntries(st.deb.map(d=>[d[1],d[3]]));
-  ok(eng['VELİ KAYA']==='kes_bek','Aynı dosyada kesinleşmemiş borçlu → “Kesinleşme bekleniyor”',eng);ok(eng['ALİ YILMAZ']==='kes_dog','Kesinleşmiş borçlu doğrulama bekliyor (hazır değil)',eng['ALİ YILMAZ']);
+  ok(eng['VELİ KAYA']==='kes_bek','Aynı dosyada kesinleşmemiş borçlu → “Kesinleşme bekleniyor”',eng);ok(eng['ALİ YILMAZ']==='hazir','Kesinleşmiş, itirazsız borçlu doğrudan Hacze hazır (ayrı doğrulama yok)',eng['ALİ YILMAZ']);
   ok(eng['CAN DEMİR']==='kapali','Kapalı dosya motora girmiyor');ok(eng['DELTA İNŞAAT LTD. ŞTİ.']==='taraf','Vekil kaydı olmayan dosya “Taraf değiliz”');
   await p.evaluate(()=>{['ALİ YILMAZ','EMRE ŞAHİN','VELİ KAYA','CAN DEMİR'].forEach(n=>{const d=HX.data.hx_debtors.find(x=>x.ad===n);d.man=Object.assign({},d.man,{dogrulandi:true,tebligTarihi:'2026-10-01'})})});
   const eng2=await p.evaluate(()=>Object.fromEntries(HX.data.hx_debtors.map(d=>[d.ad,hxEngine(d)])));ok(eng2['ALİ YILMAZ']==='hazir'&&eng2['EMRE ŞAHİN']==='hazir','Doğrulanınca kesinleşmiş + açık + vekilli borçlular hacze hazır',eng2);
