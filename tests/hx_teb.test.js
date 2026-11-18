@@ -1,0 +1,41 @@
+/* Toplu sonuçlar başı: borçluların tebligat durumları + güncelleme penceresi — node hx_teb.test.js <app.html> */
+const {chromium}=require('playwright');const fs=require('fs'),path=require('path'),http=require('http');
+const APP=path.resolve(process.argv[2]||'../out22.html');const FX=path.join(__dirname,'fxhx','Dosya Durum Rapor.xlsx');
+let pass=0,fail=0;const ok=(c,m,x)=>{if(c){pass++;console.log('  ✓ '+m)}else{fail++;console.log('  ✗ '+m+(x!==undefined?' → '+JSON.stringify(x):''))}};
+(async()=>{const html='<!doctype html><html><head><meta charset=utf8></head><body>'+fs.readFileSync(APP,'utf8')+'</body></html>';
+  const srv=http.createServer((q,r)=>{r.writeHead(200,{'content-type':'text/html; charset=utf-8'});r.end(html)}).listen(0);await new Promise(r=>srv.once('listening',r));
+  const b=await chromium.launch();const p=await b.newPage({viewport:{width:430,height:1600}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+  await p.addInitScript(()=>{localStorage.setItem('ia-arastiran','Test Kullanıcı')});
+  const boot=async()=>{await p.goto('http://127.0.0.1:'+srv.address().port+'/');await p.waitForTimeout(1200);await p.addScriptTag({path:path.join(__dirname,'node_modules/xlsx/dist/xlsx.full.min.js')});
+    await p.evaluate(()=>{document.querySelectorAll('.modal-bg').forEach(x=>x.remove());hxSetMode(true)});await p.waitForFunction(()=>HX.ready===true,null,{timeout:20000})};
+  const openFoy=async()=>{await p.click('#bottomNav .bn.hxn[data-hxb="dosyalar"]');await p.waitForFunction(()=>S.pid===HX_BPID&&S.debtors.length>0,null,{timeout:20000});await p.waitForTimeout(600);
+    await p.evaluate(()=>{const d=S.debtors.find(x=>x.m2==='2024/1111');select(d.i);S.tab='toplu';renderCard()});await p.waitForTimeout(400)};
+  await boot();await p.evaluate(()=>hxShow('yukle'));await p.waitForTimeout(150);await p.setInputFiles('#hxFile',[FX]);await p.waitForFunction(()=>HXI.files.length>0&&!HXI.prog);
+  await p.click('[data-hx-act="commit"]');await p.click('.modal [data-m="ok"]');await p.waitForFunction(()=>!HXI.busy&&!HXI.files.length,null,{timeout:30000});await p.waitForTimeout(1200);
+  await openFoy();
+  console.log('\n1) Başlık: yalnızca tebligat durumları');
+  const a=await p.evaluate(()=>({rows:[...document.querySelectorAll('#hxuTs .hxu-tr')].map(r=>r.innerText.replace(/\s+/g,' ')),pills:document.querySelectorAll('#hxuTs .hxu-pill').length,
+    strip:!!document.querySelector('#hxfStrip'),kef:/Excel'deki diğer borçlular|HANSOFT Dosya ID:/.test(document.querySelector('#cardPane').innerText),grid:!!document.querySelector('#hxuTs .hxu-g')}));
+  console.log('   ',JSON.stringify(a.rows));
+  ok(a.rows.length===2&&/ALİ YILMAZ/.test(a.rows[0])&&/VELİ KAYA/.test(a.rows[1]),'Dosyanın 2 borçlusu alt alta, borçlu en üstte',a.rows);
+  ok(a.rows.every(r=>/Tebliğ edildi/.test(r)),'Her satırda tebligat durumu',a.rows);ok(a.pills===0,'Diğer durum etiketleri (6 kontrol) kaldırıldı');
+  ok(!a.kef,'Föydeki Excel bilgi satırı ve “Excel’deki diğer borçlular” kaldırıldı');ok(!a.strip&&a.grid,'Üst şerit yok; hisse/adres bölümü duruyor');
+  console.log('\n2) Duruma tıkla → pencere → güncelle');
+  await p.click('#hxuTs [data-hxu-teb="d1002"]');await p.waitForSelector('.modal #hxuTd');
+  const mt=await p.evaluate(()=>document.querySelector('.modal').innerText);ok(/Tebligat durumu/.test(mt)&&/VELİ KAYA/.test(mt)&&/UYAP aşaması/.test(mt),'Tebligat durumu penceresi VELİ için açıldı');
+  await p.selectOption('.modal #hxuTd','iade');await p.fill('.modal #hxuTn','yeni adrese çıkarılacak');await p.click('.modal [data-m="ok"]');await p.waitForTimeout(1500);
+  const r=await p.evaluate(()=>{const d=HX.data.hx_debtors.find(x=>x.id==='d1002');return {btn:document.querySelector('#hxuTs [data-hxu-teb="d1002"]').innerText.replace(/\s+/g,' '),eng:hxEngine(d),man:d.man,
+    aud:HX.data.hx_audit.filter(x=>x.debtorId==='d1002'&&/Tebligat/.test(x.note||'')).map(x=>x.note)}});
+  console.log('   ',JSON.stringify(r));
+  ok(/Bila \/ iade/.test(r.btn)&&/elle/.test(r.btn),'Satır güncellendi: Bila / iade (elle)',r.btn);ok(r.eng==='iade','Motor durumu da iade oldu',r.eng);
+  ok(r.aud.some(n=>/Tebligat durumu: Bila/.test(n))&&r.aud.some(n=>/Tebligat notu/.test(n)),'İşlem geçmişine yazıldı',r.aud);
+  await p.screenshot({path:path.join(__dirname,'hx_teb.png'),clip:await p.evaluate(()=>{const x=document.querySelector('#hxuTs .hxu-h').getBoundingClientRect();return {x:0,y:Math.max(0,x.top-4),width:430,height:x.height+8}})});
+  console.log('\n3) Yeniden yüklemede korunur; tebliğ edildi + tarih');
+  await p.waitForTimeout(2500);await boot();await openFoy();
+  const k=await p.evaluate(()=>document.querySelector('#hxuTs [data-hxu-teb="d1002"]').innerText.replace(/\s+/g,' '));ok(/Bila \/ iade/.test(k),'Yeniden yüklemede durum korunuyor',k);
+  await p.click('#hxuTs [data-hxu-teb="d1002"]');await p.waitForSelector('.modal #hxuTd');await p.selectOption('.modal #hxuTd','teblig');await p.fill('.modal #hxuTt','2026-11-10');await p.click('.modal [data-m="ok"]');await p.waitForTimeout(1200);
+  const k2=await p.evaluate(()=>document.querySelector('#hxuTs [data-hxu-teb="d1002"]').innerText.replace(/\s+/g,' '));ok(/Tebliğ edildi · 10\.11\.2026/.test(k2),'Tebliğ edildi · tarih gösteriliyor',k2);
+  await p.evaluate(()=>{S.tab='tdetay';renderCard()});await p.waitForTimeout(300);ok(await p.evaluate(()=>document.querySelectorAll('#hxuTd .hxu-tr').length===2),'Toplu detayda da aynı liste');
+  const ov=await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth);ok(ov,'Telefonda yatay taşma yok');
+  console.log('\nSayfa hataları:',errs.length?errs:'yok');if(errs.length)fail++;
+  console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);await b.close();srv.close();process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});
