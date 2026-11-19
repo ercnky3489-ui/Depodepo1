@@ -127,6 +127,7 @@ export default function ReadingSession() {
     qc.invalidateQueries({ queryKey: ['library'] });
     qc.invalidateQueries({ queryKey: ['streak'] });
     qc.invalidateQueries({ queryKey: ['profileSummary'] });
+    qc.invalidateQueries({ queryKey: ['shelves'] });
   };
 
   const close = () => {

@@ -13,6 +13,15 @@ const DETAIL_SELECT = `
   media_contributors(role, character_name, sort_order, contributors(id, name, photo_path))
 `;
 
+// Kütüphane değişince (okudum/okuyorum/okuyacağım, sayfa, favori) profildeki raflar, sayılar ve akış da yenilensin
+function refreshLibraryViews(qc: ReturnType<typeof useQueryClient>, uid: string | null) {
+  qc.invalidateQueries({ queryKey: ['shelves', uid] });
+  qc.invalidateQueries({ queryKey: ['profileSummary', uid] });
+  qc.invalidateQueries({ queryKey: ['me'] });
+  qc.invalidateQueries({ queryKey: ['feed'] });
+  qc.invalidateQueries({ queryKey: ['wrapped'] });
+}
+
 export function useMedia(id: string) {
   return useQuery({
     queryKey: ['media', id],
@@ -54,8 +63,7 @@ export function useSetLibrary(mediaId: string) {
     onSuccess: (entry) => {
       qc.setQueryData(['library', uid, mediaId], entry);
       qc.invalidateQueries({ queryKey: ['media', mediaId] });
-      qc.invalidateQueries({ queryKey: ['me'] });
-      qc.invalidateQueries({ queryKey: ['feed'] });
+      refreshLibraryViews(qc, uid);
     },
   });
 }
@@ -73,7 +81,7 @@ export function useSaveCurrentPage(mediaId: string) {
       .upsert({ user_id: uid, media_id: mediaId, status, current_page: page }, { onConflict: 'user_id,media_id' }).select().single();
     if (error) throw error;
     qc.setQueryData(['library', uid, mediaId], data as LibraryEntry);
-    if (!current || current.status !== status) qc.invalidateQueries({ queryKey: ['me'] });
+    if (!current || current.status !== status) refreshLibraryViews(qc, uid);
   };
 }
 
@@ -89,8 +97,7 @@ export function useRemoveFromLibrary(mediaId: string) {
     onSuccess: () => {
       qc.setQueryData(['library', uid, mediaId], null);
       qc.invalidateQueries({ queryKey: ['media', mediaId] });
-      qc.invalidateQueries({ queryKey: ['me'] });
-      qc.invalidateQueries({ queryKey: ['feed'] });
+      refreshLibraryViews(qc, uid);
     },
   });
 }
@@ -150,6 +157,7 @@ export function useToggleEpisode(mediaId: string) {
       qc.invalidateQueries({ queryKey: ['seasons', uid, mediaId] });
       qc.invalidateQueries({ queryKey: ['library', uid, mediaId] });
       qc.invalidateQueries({ queryKey: ['seriesProgress', mediaId] });
+      refreshLibraryViews(qc, uid);
     },
   });
 }
