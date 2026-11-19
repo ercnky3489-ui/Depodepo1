@@ -52,7 +52,7 @@ export async function openLibrarySearch(q: string): Promise<NormalizedMedia[]> {
 }
 
 export async function googleBooksByIsbn(isbn13: string): Promise<NormalizedMedia | null> {
-  const url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn13}&maxResults=1&key=${env('GOOGLE_BOOKS_API_KEY')}`;
+  const url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn13}&maxResults=1${googleKey()}`;
   // deno-lint-ignore no-explicit-any
   const data = await fetchJson<{ items?: any[] }>(url);
   return data.items?.[0] ? fromGoogleVolume(data.items[0]) : null;
@@ -61,11 +61,18 @@ export async function googleBooksByIsbn(isbn13: string): Promise<NormalizedMedia
 const GOOGLE = 'https://www.googleapis.com/books/v1/volumes';
 
 /** Serbest metinle kitap arar. Türkçe kitaplar öncelikli: langRestrict=tr. Sonuç sırası değiştirilmez. */
+// Google Books anahtarı isteğe bağlı: yoksa anahtarsız (ortak, düşük kotalı) istek atılır.
+function googleKey(): string {
+  const k = Deno.env.get('GOOGLE_BOOKS_API_KEY');
+  return k ? `&key=${encodeURIComponent(k)}` : '';
+}
+
 export async function googleBooksSearch(q: string, startIndex = 0, lang: 'tr' | 'any' = 'tr'): Promise<{ items: GoogleBookSummary[]; total: number }> {
   const params = new URLSearchParams({
     q, printType: 'books', maxResults: '20', startIndex: String(Math.max(0, Math.min(startIndex, 200))),
-    key: env('GOOGLE_BOOKS_API_KEY'),
   });
+  const k = Deno.env.get('GOOGLE_BOOKS_API_KEY');
+  if (k) params.set('key', k);
   if (lang === 'tr') params.set('langRestrict', 'tr');
   // deno-lint-ignore no-explicit-any
   const data = await fetchJson<{ items?: any[]; totalItems?: number }>(`${GOOGLE}?${params}`);
@@ -76,6 +83,6 @@ export async function googleBooksSearch(q: string, startIndex = 0, lang: 'tr' | 
 /** Kullanıcı bir Google Books sonucunu seçtiğinde tam kaydı getirir (kataloğa yalnızca o zaman yazılır). */
 export async function googleBooksById(id: string): Promise<NormalizedMedia | null> {
   if (!/^[A-Za-z0-9_-]{4,40}$/.test(id)) return null;
-  const d = await fetchJson(`${GOOGLE}/${id}?key=${env('GOOGLE_BOOKS_API_KEY')}`);
+  const d = await fetchJson(`${GOOGLE}/${id}?${googleKey().slice(1)}`);
   return fromGoogleVolume(d);
 }
