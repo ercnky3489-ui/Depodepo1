@@ -1,0 +1,41 @@
+/* Metinden hane · kefil haneleri (föyde ve İçe Aktarma'da) — node hx_hane3.test.js <app.html> */
+const {chromium}=require('playwright');const fs=require('fs'),path=require('path'),http=require('http');
+const APP=path.resolve(process.argv[2]||'../out31.html');const FX=path.join(__dirname,'fxhx','Dosya Durum Rapor.xlsx');
+let pass=0,fail=0;const ok=(c,m,x)=>{if(c){pass++;console.log('  ✓ '+m)}else{fail++;console.log('  ✗ '+m+(x!==undefined?' → '+JSON.stringify(x):''))}};
+const H='Sorgulanan TCKN;Durum;Yakınlık;TCKN;Adı;Soyadı;Doğum Tarihi;Anne Adı;Anne TC;Baba Adı;Baba TC;Nüfus İl;Nüfus İlçe';
+const row=(sq,y,tc,ad,so,dg)=>`"=""${sq}""";Bulundu;${y};"=""${tc}""";${ad};${so};${dg};-;-;-;-;İstanbul;Kadıköy`;
+const T=[H,row('10000000146','KENDİSİ','10000000146','ALİ','YILMAZ','1980-01-01'),row('10000000146','EŞİ','10000000999','ZEYNEP','YILMAZ','1982-02-02'),
+  row('20000000214','KENDİSİ','20000000214','VELİ','KAYA','1979-07-07'),row('20000000214','EŞİ','20000000555','AYŞE','KAYA','1981-08-08'),row('20000000214','OĞLU','20000000666','MERT','KAYA','2008-09-09'),
+  row('77777777770','KENDİSİ','77777777770','YABANCI','KİŞİ','1970-01-01'),row('77777777770','EŞİ','77777777771','DIŞ','KİŞİ','1971-01-01')].join('\n');
+(async()=>{const html='<!doctype html><html><head><meta charset=utf8></head><body>'+fs.readFileSync(APP,'utf8')+'</body></html>';
+  const srv=http.createServer((q,r)=>{r.writeHead(200,{'content-type':'text/html; charset=utf-8'});r.end(html)}).listen(0);await new Promise(r=>srv.once('listening',r));
+  const b=await chromium.launch();const p=await b.newPage({viewport:{width:1440,height:1000}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+  await p.addInitScript(()=>{localStorage.setItem('ia-arastiran','Test Kullanıcı')});
+  await p.goto('http://127.0.0.1:'+srv.address().port+'/');await p.waitForTimeout(1200);await p.addScriptTag({path:path.join(__dirname,'node_modules/xlsx/dist/xlsx.full.min.js')});
+  await p.evaluate(()=>{document.querySelectorAll('.modal-bg').forEach(x=>x.remove());hxSetMode(true)});await p.waitForFunction(()=>HX.ready===true,null,{timeout:20000});
+  await p.evaluate(()=>hxShow('yukle'));await p.waitForTimeout(150);await p.setInputFiles('#hxFile',[FX]);await p.waitForFunction(()=>HXI.files.length>0&&!HXI.prog);
+  await p.click('[data-hx-act="commit"]');await p.click('.modal [data-m="ok"]');await p.waitForFunction(()=>!HXI.busy&&!HXI.files.length,null,{timeout:30000});await p.waitForTimeout(800);
+  await p.evaluate(()=>document.querySelectorAll('.modal-bg').forEach(x=>x.remove()));
+  await p.click('#bottomNav .bn.hxn[data-hxb="dosyalar"]');await p.waitForFunction(()=>S.pid===HX_BPID&&S.debtors.length>0,null,{timeout:20000});await p.waitForTimeout(500);
+  console.log('\n1) Föydeki düğme: borçlu + kefil hanesi birlikte');
+  const r=await p.evaluate(t=>{const d=S.debtors.find(x=>x.m2==='2024/1111');select(d.i);S.tab='kisi';renderCard();document.querySelector('#cardPane [data-act="hane-paste"]').click();
+    document.querySelector('#hpaste').value=t;[...document.querySelectorAll('.modal [data-m="ok"]')].pop().click();
+    const R=cur();const by=id=>(R.persons.find(x=>x.id===id)||{}).ad||'';return R.persons.map(x=>[x.ad,x.rol,x.yakinlik||'',x.dogum||'',by(x.haneOf)].join('|'))},T);
+  console.log('   ',JSON.stringify(r));
+  ok(r.includes('AYŞE KAYA|Hane|Eş|08.08.1981|VELİ KAYA')&&r.some(x=>/^MERT KAYA\|Hane\|Çocuk\|.*\|VELİ KAYA$/.test(x)),'Kefil VELİ’nin eşi ve çocuğu, VELİ’nin hanesi olarak eklendi',r);
+  ok(r.includes('ZEYNEP YILMAZ|Hane|Eş|02.02.1982|ALİ YILMAZ'),'Borçlu ALİ’nin eşi, ALİ’nin hanesi olarak eklendi',r);
+  ok(r.some(x=>/^VELİ KAYA\|Kefil\|\|07\.07\.1979/.test(x))&&r.some(x=>/^ALİ YILMAZ\|Borçlu\|\|01\.01\.1980/.test(x)),'Kefilin ve borçlunun boş doğum tarihi dolduruldu, rolleri değişmedi',r);
+  ok(!r.some(x=>/YABANCI|DIŞ KİŞİ/.test(x)),'TCKN’si föyde olmayan hane eklenmedi (borçluya yazılmadı)',r);
+  const lbl=await p.evaluate(()=>[...document.querySelectorAll('#cardPane .pt-card')].map(c=>c.querySelector('.pt-rt').innerText.replace(/\s+/g,' ')+' :: '+c.querySelector('.ent-title').innerText));
+  console.log('   ',JSON.stringify(lbl));ok(lbl.some(x=>/hane · eş · velİ kaya \(kefil\) hanesi :: AYŞE KAYA/i.test(x))&&lbl.some(x=>/hane · eş :: ZEYNEP YILMAZ$/i.test(x)),'Kartta “… (kefil) hanesi” etiketi; borçlu hanesinde etiket yok',lbl);
+  await p.screenshot({path:path.join(__dirname,'hx_hane3.png'),fullPage:false});
+  console.log('\n2) İçe Aktarma: kefilin hanesi');
+  await p.evaluate(()=>{const d=S.debtors.find(x=>x.m2==='2025/4444');const R=getR(d.i);R.persons.push(newPerson({rol:'Kefil',ad:'KEMAL ÖZ',kimlik:'50000000011'}));delete R._fresh;touch(R)});await p.waitForTimeout(400);
+  const T2=[H,row('50000000011','KENDİSİ','50000000011','KEMAL','ÖZ','1960-01-01'),row('50000000011','EŞİ','50000000022','NUR','ÖZ','1962-02-02')].join('\n');
+  await p.evaluate(t=>anaImportText('hane',t),T2);await p.waitForTimeout(500);
+  const pv=await p.evaluate(()=>document.querySelector('#hbkPrev').innerText.replace(/\s+/g,' '));ok(/1 hane eşlendi/.test(pv)&&/\(Kefil\)/.test(pv),'Önizleme: kefil KEMAL ÖZ’e eşlendi',pv.slice(0,200));
+  await p.click('#hbkGo');await p.waitForTimeout(1000);await p.evaluate(()=>document.querySelectorAll('.modal-bg').forEach(x=>x.remove()));
+  const e=await p.evaluate(()=>{const d=S.debtors.find(x=>x.m2==='2025/4444');const R=S.research.get(d.i);const by=id=>(R.persons.find(x=>x.id===id)||{}).ad||'';return R.persons.map(x=>[x.ad,x.rol,x.yakinlik||'',by(x.haneOf)].join('|'))});
+  ok(e.includes('NUR ÖZ|Hane|Eş|KEMAL ÖZ'),'İçe Aktarma: NUR ÖZ kefil KEMAL ÖZ’ün hanesi olarak eklendi',e);
+  console.log('\nSayfa hataları:',errs.length?errs:'yok');if(errs.length)fail++;
+  console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);await b.close();srv.close();process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});
