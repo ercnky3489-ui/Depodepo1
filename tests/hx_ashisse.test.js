@@ -1,0 +1,44 @@
+/* Aşamalar · Şirket hisse hacizleri madalyonu — node hx_ashisse.test.js <app.html> */
+const {chromium}=require('playwright');const fs=require('fs'),path=require('path'),http=require('http');
+const APP=path.resolve(process.argv[2]||'../out24.html');const FX=path.join(__dirname,'fxhx','Dosya Durum Rapor.xlsx');
+let pass=0,fail=0;const ok=(c,m,x)=>{if(c){pass++;console.log('  ✓ '+m)}else{fail++;console.log('  ✗ '+m+(x!==undefined?' → '+JSON.stringify(x):''))}};
+(async()=>{const html='<!doctype html><html><head><meta charset=utf8></head><body>'+fs.readFileSync(APP,'utf8')+'</body></html>';
+  const srv=http.createServer((q,r)=>{r.writeHead(200,{'content-type':'text/html; charset=utf-8'});r.end(html)}).listen(0);await new Promise(r=>srv.once('listening',r));
+  const b=await chromium.launch();const p=await b.newPage({viewport:{width:1440,height:1000},deviceScaleFactor:1});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+  await p.addInitScript(()=>{localStorage.setItem('ia-arastiran','Test Kullanıcı')});
+  await p.goto('http://127.0.0.1:'+srv.address().port+'/');await p.waitForTimeout(1200);await p.addScriptTag({path:path.join(__dirname,'node_modules/xlsx/dist/xlsx.full.min.js')});
+  await p.evaluate(()=>{document.querySelectorAll('.modal-bg').forEach(x=>x.remove());hxSetMode(true)});await p.waitForFunction(()=>HX.ready===true,null,{timeout:20000});
+  await p.evaluate(()=>hxShow('yukle'));await p.waitForTimeout(150);await p.setInputFiles('#hxFile',[FX]);await p.waitForFunction(()=>HXI.files.length>0&&!HXI.prog);
+  await p.click('[data-hx-act="commit"]');await p.click('.modal [data-m="ok"]');await p.waitForFunction(()=>!HXI.busy&&!HXI.files.length,null,{timeout:30000});await p.waitForTimeout(1000);
+  /* test verisi: ortaklık kayıtları (bellekte) */
+  await p.evaluate(()=>{const add=(did,a)=>HX.data.hx_research.push({id:'t'+Math.random(),debtorId:did,type:'ortaklik',kaynak:'test',alan:a});
+    add('d1001',{'Firma Unvanı':'ÖRNEK DIŞ TİCARET KOLLEKTİF ŞİRKETİ','Mersis No':'01','Görev':'GERÇEK ORTAK','Aktif mi':'Aktif','İş Türü':''});
+    add('d1001',{'Firma Unvanı':'DEMO BİLİŞİM A.Ş.','Mersis No':'02','Görev':'Yönetim Kurulu Üyesi','Aktif mi':'Pasif','İş Türü':'Yapılacak işlem yok'});
+    add('d1005',{'Firma Unvanı':'ŞAHİN GIDA LTD. ŞTİ.','Mersis No':'03','Görev':'GERÇEK ORTAK','Aktif mi':'Aktif','İş Türü':''})});
+  console.log('\n1) Menü ve madalyon');
+  const nav=await p.evaluate(()=>!!document.querySelector('#bottomNav [data-hx="hisse"]'));ok(!nav,'Soldaki menüde “Şirket Hisse Hacizleri” yok');
+  await p.click('#bottomNav .bn.hxn[data-hxb="asama"]');await p.waitForFunction(()=>S.screen==='asama'&&!!document.querySelector('#asamaScreen .as-meds'),null,{timeout:15000});await p.waitForTimeout(300);
+  const m=await p.evaluate(()=>[...document.querySelectorAll('#asamaScreen .as-med')].map(x=>x.dataset.as+':'+x.querySelector('.as-mc').textContent));
+  ok(m[0]==='hisse:3'&&m[1].startsWith('faal'),'Hisse madalyonu GİB faal’in solunda (3 kayıt)',m);
+  await p.click('#asamaScreen .as-med[data-as="hisse"]');await p.waitForTimeout(300);
+  const a=await p.evaluate(()=>({tabs:[...document.querySelectorAll('#asamaScreen [data-ashs]')].map(x=>x.innerText.replace(/\s+/g,' ')),cards:document.querySelectorAll('#asamaScreen [data-ashd]').length,
+    on:document.querySelector('#asamaScreen .as-med.on').dataset.as,faalOn:!!document.querySelector('#asamaScreen .as-med[data-as="faal"].on'),dur:!!document.querySelector('#asamaScreen .as-dur'),uy:document.querySelectorAll('#asamaScreen .md-uy').length}));
+  console.log('   ',JSON.stringify(a));
+  ok(a.cards===3&&a.on==='hisse'&&!a.faalOn,'Tıklayınca tamamı (3) görünüyor, yalnız hisse seçili');
+  ok(a.tabs.join('|')==='Tümü3|Aktif ortaklık2|Pasif ortaklık1|Haciz talebi gönderilecek2|İşlem yok1','Alt sekmeler ve sayıları: Tümü 3 / Aktif 2 / Pasif 1 / Haciz talebi 2 / İşlem yok 1',a.tabs);
+  ok(a.uy===3,'Her kartta “UYAP · Hisse haczi” etiketi');
+  await p.screenshot({path:path.join(__dirname,'hx_ashisse.png')});
+  await p.click('#asamaScreen [data-ashs="aktif"]');await p.waitForTimeout(200);ok(await p.evaluate(()=>document.querySelectorAll('#asamaScreen [data-ashd]').length)===2,'Aktif sekmesi: 2');
+  await p.click('#asamaScreen [data-ashs="pasif"]');await p.waitForTimeout(200);ok(await p.evaluate(()=>document.querySelectorAll('#asamaScreen [data-ashd]').length)===1,'Pasif sekmesi: 1');
+  await p.click('#asamaScreen [data-ashs="all"]');await p.fill('#asQ','şahin');await p.waitForTimeout(500);ok(await p.evaluate(()=>document.querySelectorAll('#asamaScreen [data-ashd]').length)===1,'Arama çalışıyor');
+  await p.fill('#asQ','');await p.waitForTimeout(400);
+  console.log('\n2) Karta tıklayınca föy');
+  await p.click('#asamaScreen [data-ashd="d1005"]');await p.waitForTimeout(1500);
+  const f=await p.evaluate(()=>({scr:S.screen,ad:(S.debtors[S.sel]||{}).ad}));ok(f.scr==='dosyalar'&&f.ad==='EMRE ŞAHİN','EMRE ŞAHİN föyü açıldı',f);
+  console.log('\n3) Diğer madalyonlar bozulmadı');
+  await p.click('#bottomNav .bn.hxn[data-hxb="asama"]');await p.waitForTimeout(800);await p.click('#asamaScreen .as-med[data-as="faal"]');await p.waitForTimeout(300);
+  const g=await p.evaluate(()=>({on:document.querySelector('#asamaScreen .as-med.on').dataset.as,h2:document.querySelector('#asamaScreen .as-bar h2').innerText}));ok(g.on==='faal'&&/GİB faal/.test(g.h2),'GİB faal normal açılıyor',g);
+  await p.setViewportSize({width:430,height:1400});await p.click('#asamaScreen .as-med[data-as="hisse"]');await p.waitForTimeout(400);
+  ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Telefonda yatay taşma yok');await p.screenshot({path:path.join(__dirname,'hx_ashisse_tel.png')});
+  console.log('\nSayfa hataları:',errs.length?errs:'yok');if(errs.length)fail++;
+  console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);await b.close();srv.close();process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});
