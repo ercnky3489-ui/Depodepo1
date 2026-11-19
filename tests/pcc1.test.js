@@ -1,0 +1,76 @@
+/* PORTFOLIO COMMAND CENTER · Aşama 1 — çakışma motoru kabul testleri (1,2,3,4,5,7,9,10) — node pcc1.test.js <app.html> */
+const {chromium}=require('playwright');const fs=require('fs'),path=require('path'),http=require('http');
+const APP=path.resolve(process.argv[2]||'../out33.html');const FX=path.join(__dirname,'fxhx','Dosya Durum Rapor.xlsx');
+let pass=0,fail=0;const ok=(c,m,x)=>{if(c){pass++;console.log('  ✓ '+m)}else{fail++;console.log('  ✗ '+m+(x!==undefined?' → '+JSON.stringify(x).slice(0,600):''))}};
+const T1='11111111110',T2='22222222220',T3='33333333330',TK='44444444440',T9='99999999990';
+(async()=>{const html='<!doctype html><html><head><meta charset=utf8></head><body>'+fs.readFileSync(APP,'utf8')+'</body></html>';
+  const srv=http.createServer((q,r)=>{r.writeHead(200,{'content-type':'text/html; charset=utf-8'});r.end(html)}).listen(0);await new Promise(r=>srv.once('listening',r));
+  const b=await chromium.launch();const p=await b.newPage({viewport:{width:1440,height:1000}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+  await p.addInitScript(()=>{localStorage.setItem('ia-arastiran','Test Kullanıcı')});
+  await p.goto('http://127.0.0.1:'+srv.address().port+'/');await p.waitForTimeout(1500);
+  await p.evaluate(()=>document.querySelectorAll('.modal-bg').forEach(x=>x.remove()));
+  console.log('\nTEST 10) Veri yokken sıfır, sahte istatistik yok');
+  const z=await p.evaluate(async()=>{const r=await pccRun({force:true});return {n:r.conflicts.length,c:Object.values(r.counts).reduce((a,x)=>a+x.kesin+x.olasi,0),pf:r.pfs.length}});
+  ok(z.n===0&&z.c===0,'Hiç portföy yokken tüm sayılar 0',z);
+  /* üç Birikim portföyü */
+  await p.evaluate(async({T1,T2,T3,TK,T9})=>{const row=(i,ad,kimlik,o)=>Object.assign({i,ad,kimlik,sirket:false,m:'',m2:'',gib:'',anapara:null,toplam:10000+i,not:'',kef:[],x:{}},o||{});
+    const mk=async(pid,name,rows,res)=>{await Store.savePortfolio(pid,{name,alacakli:name+' VYŞ',importedAt:new Date().toISOString(),count:rows.length},rows);for(const R of res)await Store.saveResearch(Object.assign({pid,durum:'',sonuc:'',persons:[],companies:[]},R))};
+    const P=(o)=>newPerson(o);
+    await mk('pA','Portföy A',[row(0,'AHMET YILMAZ',T1,{m:'100'}),row(1,'AYŞE KARA',T2),row(2,'MEHMET DEMİR','')],[
+      {idx:0,icraDaire:'İstanbul 5. İcra Dairesi',esasNo:'2024/12345',persons:[P({ad:'AHMET YILMAZ',kimlik:T1,rol:'Borçlu',telefonlar:[{id:'a',tel:'0532 111 22 33'}]}),P({ad:'MEHMET YILMAZ',kimlik:TK,rol:'Kefil'})],companies:[newCompany({unvan:'YILMAZ İNŞAAT LTD. ŞTİ.',mersis:'0123456789000011'})]}]);
+    await mk('pB','Portföy B',[row(0,'AHMET YILMAZ',T1),row(1,'ALİ VURAL',T3),row(2,'MEHMET DEMİR',T9)],[
+      {idx:0,icraDaire:'İSTANBUL 5. İCRA DAİRESİ',esasNo:'2024 / 12345',persons:[P({ad:'AHMET YILMAZ',kimlik:T1,rol:'Borçlu'})]},
+      {idx:1,persons:[P({ad:'ALİ VURAL',kimlik:T3,rol:'Borçlu',telefonlar:[{id:'b',tel:'+90 532 111 2233'}]}),P({ad:'MEHMET YILMAZ',kimlik:TK,rol:'Kefil'}),P({ad:'AYŞE KARA',kimlik:T2,rol:'Hane',yakinlik:'Eş'})],companies:[newCompany({unvan:'YILMAZ İNŞAAT LTD. ŞTİ.',mersis:'0123456789000011'})]}]);
+    await mk('pC','Portföy C',[row(0,'AHMET YILMAZ',T1,{m:'500'}),row(1,'AHMET YILMAZ',T1,{m:'500'})],[]);
+    S.portfolios=[{id:'pA',name:'Portföy A'},{id:'pB',name:'Portföy B'},{id:'pC',name:'Portföy C'}].map(x=>Object.assign(x,{count:3,importedAt:'2026-11-01'}))},{T1,T2,T3,TK,T9});
+  const r=await p.evaluate(async()=>{const r=await pccRun({force:true});return r.conflicts.map(c=>({id:c.id,t:c.t,lvl:c.lvl,pids:c.pids.sort(),n:c.items.length,note:c.note||'',durum:c.durum}))});
+  const g=id=>r.find(c=>c.id===id);console.log('    çakışmalar:',r.map(c=>c.id+'·'+c.lvl+'·'+c.pids.join('/')).join(' | '));
+  console.log('\nTEST 1) Aynı TCKN iki portföyde → ortak müşteri');
+  ok(g('A:'+T1)&&g('A:'+T1).lvl==='kesin','AHMET YILMAZ (TCKN) ortak müşteri · kesin',g('A:'+T1));
+  console.log('\nTEST 2) Aynı icra dairesi + esas no iki portföyde → ortak icra dosyası');
+  const B=r.find(c=>c.t==='B');ok(B&&B.pids.join()==='pA,pB'&&B.key==='İSTANBUL 5 İCRA DAİRESİ|2024/12345'.replace(/\s+/g,' ')||B&&B.pids.join()==='pA,pB','İstanbul 5. İcra 2024/12345 (yazım farkına rağmen) A ve B’de',B);
+  ok(B&&B.lvl==='olasi'&&/dosya türü/.test(B.note),'Dosya türü bilinmediği için “olası” (onay bekler)',B);
+  console.log('\nTEST 3) Aynı müşteri üç portföyde → tek müşteri detayında üçü');
+  const cu=await p.evaluate(T1=>pccCustomer(T1).map(x=>x.pid+'#'+x.i),T1);ok(['pA','pB','pC'].every(x=>cu.some(y=>y.startsWith(x+'#'))),'pccCustomer: A, B, C kayıtları ayrı ayrı',cu);
+  console.log('\nTEST 4) Farklı dosyalarda kefil → bağlantı');
+  ok(g('E:'+TK)&&g('E:'+TK).lvl==='kesin'&&g('E:'+TK).pids.join()==='pA,pB','MEHMET YILMAZ (kefil) A ve B dosyalarında · kesin',g('E:'+TK));
+  console.log('\nTEST 5) Belirsiz isim eşleşmesi kesin değil');
+  const nm=g('A:ad:MEHMET DEMİR');ok(nm&&nm.lvl==='olasi'&&nm.durum==='onay-bekliyor','MEHMET DEMİR (A’da TCKN yok) → olası, onay bekliyor',nm);
+  ok(!r.some(c=>c.t==='A'&&c.lvl==='kesin'&&c.id.includes('MEHMET DEMİR')),'İsim eşleşmesi hiçbir yerde kesin işaretlenmedi');
+  console.log('\nDiğer türler');
+  ok(g('C:05321112233')&&g('C:05321112233').pids.join()==='pA,pB','Ortak telefon: farklı yazımlar normalize edildi (0532 111 22 33 = +90 532 111 2233)',g('C:05321112233'));
+  ok(g('F:tel:05321112233')&&g('F:tel:05321112233').lvl==='olasi','Aynı telefon farklı kişilerde → bağlantılı kişi · olası');
+  ok(g('D:m:0123456789000011')&&g('D:m:0123456789000011').pids.join()==='pA,pB','Ortak şirket (MERSİS) A ve B borçlularında');
+  ok(g('F:'+T2)&&g('F:'+T2).lvl==='kesin'&&g('F:'+T2).pids.join()==='pA,pB','B’deki hane bireyi (TCKN) A’da borçlu → bağlantılı kişi · kesin',g('F:'+T2));
+  const G=r.find(c=>c.t==='G');ok(G&&G.pids.join()==='pC'&&G.lvl==='kesin','Portföy C’de aynı TCKN + aynı müşteri no iki satır → mükerrer kayıt',G);
+  console.log('\nTEST 9) Bir portföydeki kaydı değiştirmek diğerini değiştirmez');
+  const t9=await p.evaluate(async()=>{const o=lsGet();const before=JSON.stringify(o.r['pB--0']);const RA=o.r['pA--0'];RA.persons[0].not='A’da değiştirildi';RA.persons[0].ad='AHMET YILMAZ (A)';await Store.saveResearch(RA);
+    const o2=lsGet();const r=await pccRun({force:true});return {same:JSON.stringify(o2.r['pB--0'])===before,aStill:!!r.conflicts.find(c=>c.id==='A:11111111110'&&c.pids.length===3)}});
+  ok(t9.same&&t9.aStill,'B’deki orijinal kayıt aynen duruyor; ortak müşteri hâlâ 3 portföyde',t9);
+  console.log('\nOnay / ret (kayıt izi)');
+  const rv=await p.evaluate(async()=>{await pccReview('A:ad:MEHMET DEMİR','ret','Farklı kişiler, doğum tarihleri farklı');const r=await pccRun({});const c=r.conflicts.find(x=>x.id==='A:ad:MEHMET DEMİR');return {durum:c&&c.durum,log:(PCCS._ls().r||[]).map(x=>x.karar+'|'+x.by+'|'+x.not),rows:lsGet().p.pA.rows.length+lsGet().p.pB.rows.length}});
+  ok(rv.durum==='ret'&&rv.log.some(x=>/^ret\|Test Kullanıcı\|Farklı kişiler/.test(x))&&rv.rows===6,'Ret kararı kaydedildi (kim, gerekçe); hiçbir müşteri kaydı silinmedi',rv);
+  console.log('\nTEST 7) Excel / HANSOFT yüklemesinden sonra motor kendiliğinden çalışır');
+  await p.addScriptTag({path:path.join(__dirname,'node_modules/xlsx/dist/xlsx.full.min.js')});
+  await p.evaluate(()=>{hxSetMode(true)});await p.waitForFunction(()=>HX.ready===true,null,{timeout:20000});
+  const runs0=await p.evaluate(()=>PCC.state.runs.length);
+  await p.evaluate(async T1=>{const rows=[{i:0,ad:'ALİ YILMAZ',kimlik:'10000000146',sirket:false,m:'',m2:'',gib:'',anapara:null,toplam:1,not:'',kef:[],x:{}},{i:1,ad:'AHMET YILMAZ',kimlik:T1,sirket:false,m:'',m2:'',gib:'',anapara:null,toplam:1,not:'',kef:[],x:{}}];
+    S.portfolios.push({id:'pD',name:'Portföy D',count:2,importedAt:new Date().toISOString()});await Store.savePortfolio('pD',{name:'Portföy D',count:2,importedAt:new Date().toISOString()},rows)},T1);
+  await p.waitForFunction(()=>PCC.state&&PCC.state.runs.some(x=>x.why==='portföy yüklendi')&&!PCC.running&&!PCC.again,null,{timeout:15000});
+  const t7=await p.evaluate(()=>{const c=PCC.res.conflicts.find(x=>x.id==='A:11111111110');return {why:(PCC.state.runs.find(x=>x.why==='portföy yüklendi')||{}).why,pids:c&&c.pids.slice().sort(),yeni:PCC.state.runs[0].yeni}});
+  ok(t7.why==='portföy yüklendi'&&t7.pids&&t7.pids.join()==='pA,pB,pC,pD','Yeni portföy yüklenince otomatik karşılaştırıldı; AHMET artık 4 portföyde',t7);
+  await p.evaluate(()=>hxShow('yukle'));await p.waitForTimeout(150);await p.setInputFiles('#hxFile',[FX]);await p.waitForFunction(()=>HXI.files.length>0&&!HXI.prog);
+  const runs1=await p.evaluate(()=>PCC.state.runs.length);
+  await p.click('[data-hx-act="commit"]');await p.click('.modal [data-m="ok"]');await p.waitForFunction(()=>!HXI.busy&&!HXI.files.length,null,{timeout:30000});
+  await p.waitForFunction(n=>PCC.state.runs.length>n&&!PCC.running&&PCC.res.pfs.some(x=>x.hx),runs1,{timeout:20000});
+  const hx=await p.evaluate(()=>{const c=PCC.res.conflicts.find(x=>x.id==='A:10000000146');return c&&c.pids.slice().sort()});
+  ok(hx&&hx.includes('pD')&&hx.some(x=>/^pistanbul/.test(x)),'HANSOFT yüklemesi sonrası: ALİ YILMAZ İstanbul föyü ile Portföy D arasında ortak müşteri',hx);
+  console.log('\nHız (5.000 müşterili 4 portföy, olgu dizininden)');
+  const perf=await p.evaluate(()=>{const pfs=[],facts={};for(let k=0;k<4;k++){const pid='x'+k;pfs.push({pid});facts[pid]=[];for(let i=0;i<5000;i++){const tc=String(10000000000+((i*7+k*1300)%9000)*1);facts[pid].push(['c',tc,i,tc,'K'+i,'B',{f:'',m:''}],['n','K'+i,i,tc,'K'+i,'B',0],['t','0532'+String(1000000+((i*13+k)%20000)).slice(-7),i,tc,'K'+i,'B',0])}}
+    const t0=performance.now();const r=pccCompute({pfs,facts});return {ms:Math.round(performance.now()-t0),n:r.conflicts.length}});
+  ok(perf.ms<4000,'60.000 olgu '+perf.ms+' ms’de karşılaştırıldı ('+perf.n+' çakışma)',perf);
+  await p.evaluate(()=>showScreen('ana'));await p.waitForTimeout(600);
+  const mini=await p.evaluate(()=>{const m=document.querySelector('#anaScreen .pcc-mini');return m&&m.innerText.replace(/\s+/g,' ')});ok(mini&&/çakışma motoru/.test(mini),'Anasayfa’da çakışma özeti görünüyor',mini&&mini.slice(0,200));
+  await p.screenshot({path:path.join(__dirname,'pcc1.png'),clip:await p.evaluate(()=>{const r=document.querySelector('#anaScreen .pcc-mini').getBoundingClientRect();return {x:r.left,y:r.top,width:r.width,height:r.height}})});
+  console.log('\nSayfa hataları:',errs.length?errs:'yok');if(errs.length)fail++;
+  console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);await b.close();srv.close();process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});
