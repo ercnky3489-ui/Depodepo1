@@ -1,0 +1,41 @@
+/* Temalar: Görünüm ayarları → Tema (Klasik, Neon Gece 3D, Altın Lüks, Buzul Arktik, Zümrüt Cam) — node hx_tema.test.js <app.html> */
+const {chromium}=require('playwright');const fs=require('fs'),path=require('path'),http=require('http');
+const APP=path.resolve(process.argv[2]||'../out27.html');
+let pass=0,fail=0;const ok=(c,m,x)=>{if(c){pass++;console.log('  ✓ '+m)}else{fail++;console.log('  ✗ '+m+(x!==undefined?' → '+JSON.stringify(x):''))}};
+(async()=>{const html='<!doctype html><html><head><meta charset=utf8></head><body>'+fs.readFileSync(APP,'utf8')+'</body></html>';
+  const srv=http.createServer((q,r)=>{r.writeHead(200,{'content-type':'text/html; charset=utf-8'});r.end(html)}).listen(0);await new Promise(r=>srv.once('listening',r));
+  const b=await chromium.launch();const p=await b.newPage({viewport:{width:1440,height:900}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+  await p.addInitScript(()=>{localStorage.setItem('ia-arastiran','Test Kullanıcı')});
+  const U='http://127.0.0.1:'+srv.address().port+'/';await p.goto(U);await p.waitForTimeout(1200);await p.evaluate(()=>document.querySelectorAll('.modal-bg').forEach(x=>x.remove()));
+  const neon=()=>p.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--neon').trim().toLowerCase());
+  console.log('\n1) Ayarlarda Tema seçeneği');
+  await p.evaluate(()=>openA11y());await p.waitForSelector('.modal .temarow');
+  const opts=await p.evaluate(()=>[...document.querySelectorAll('.modal .temarow button')].map(x=>x.innerText.trim()));
+  ok(opts.join('|')==='Klasik|Neon Gece 3D|Altın Lüks|Buzul Arktik|Zümrüt Cam','Seçenekler: Klasik, Neon Gece 3D, Altın Lüks, Buzul Arktik, Zümrüt Cam',opts);
+  ok(await p.evaluate(()=>document.querySelector('.modal .temarow button.on').innerText.trim())==='Klasik','Varsayılan: Klasik');
+  await p.screenshot({path:path.join(__dirname,'hx_tema_ayar.png'),clip:await p.evaluate(()=>{const r=document.querySelector('.modal').getBoundingClientRect();return {x:r.left,y:r.top,width:r.width,height:Math.min(r.height,880)}})});
+  const n0=await neon();
+  const expect={neon3d:{d:'2',neon:false},altin:{d:'3',neon:true},arktik:{d:'2',neon:true},zumcam:{d:'4',neon:true}};
+  for(const [k,e] of Object.entries(expect)){await p.click(`.modal [data-m="tema-${k}"]`);await p.waitForTimeout(300);
+    const r=await p.evaluate(()=>({t:document.documentElement.dataset.tema,d:document.documentElement.dataset.t3d,css:(document.getElementById('temaCss')||{textContent:''}).textContent.length,last:document.body.lastElementChild===document.getElementById('temaCss')||[...document.body.querySelectorAll('style')].pop().id==='temaCss',
+      red:((document.getElementById('temaCss')||{}).textContent||'').toLowerCase().split('#ff4d5e').length-1,on:document.querySelector('.modal .temarow button.on').innerText.trim()}));
+    const nv=await neon();
+    ok(r.t===k&&r.d===e.d&&r.on,`${k}: tema ve 3B derinlik (${e.d}) uygulandı, ayarda seçili`,r);
+    if(e.neon)ok(r.css>100000&&nv!==n0&&r.red>=10,`${k}: vurgu rengi değişti (${nv}), kırmızı durum rengi korunuyor`,{css:r.css,nv,red:r.red});else ok(r.css===0&&nv===n0,`${k}: renkler aynı, yalnız 3B + geçiş`,{css:r.css,nv})}
+  console.log('\n2) Yeniden yüklemede hatırlanıyor + kayan geçiş');
+  await p.reload();await p.waitForTimeout(1500);await p.evaluate(()=>document.querySelectorAll('.modal-bg').forEach(x=>x.remove()));
+  ok(await p.evaluate(()=>document.documentElement.dataset.tema)==='zumcam','Zümrüt Cam yeniden yüklemede duruyor');
+  const tr=await p.evaluate(()=>{const el=document.querySelector('#layout');scrAnim(el);const a=el.getAnimations()[0];const kf=a&&a.effect.getKeyframes();return kf?kf[0].transform:null});
+  ok(/translateX\(60px\)/.test(tr||''),'Zümrüt Cam: yatay kayan geçiş',tr);
+  await p.evaluate(()=>{pref('tema','altin');applyA11y()});const t2=await p.evaluate(()=>{const el=document.querySelector('#layout');scrAnim(el);const a=el.getAnimations().pop();return a.effect.getKeyframes()[0].transform});
+  ok(/rotateY\(70deg\)/.test(t2),'Altın Lüks: 3B küp geçişi',t2);
+  await p.evaluate(()=>{pref('tema','arktik');applyA11y()});const t3=await p.evaluate(()=>{const el=document.querySelector('#layout');scrAnim(el);const a=el.getAnimations().pop();return a.effect.getKeyframes()[0].transform});
+  ok(/rotateX\(28deg\)/.test(t3),'Buzul Arktik: dikey 3B çevirme',t3);
+  await p.evaluate(()=>{pref('gecis','off');applyA11y()});const t4=await p.evaluate(()=>{const el=document.querySelector('#layout');el.getAnimations().forEach(a=>a.cancel());scrAnim(el);return el.getAnimations().length});
+  ok(t4===0,'Ekran geçiş animasyonu kapalıyken geçiş yok');await p.evaluate(()=>{pref('gecis','')});
+  console.log('\n3) Klasik’e dönüş');
+  await p.evaluate(()=>openA11y());await p.click('.modal [data-m="tema-klasik"]');await p.waitForTimeout(300);
+  const k=await p.evaluate(()=>({t:document.documentElement.dataset.tema||'',css:!!document.getElementById('temaCss'),d:document.documentElement.dataset.t3d||''}));
+  ok(!k.t&&!k.css&&!k.d&&(await neon())===n0,'Klasik: tema kaldırıldı, renkler eski haline döndü',k);
+  console.log('\nSayfa hataları:',errs.length?errs:'yok');if(errs.length)fail++;
+  console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);await b.close();srv.close();process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});
