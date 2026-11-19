@@ -1,44 +1,53 @@
-/* Aşamalar · Şirket hisse hacizleri madalyonu — node hx_ashisse.test.js <app.html> */
+/* Aşamalar · UYAP madalyonları (Şirket hacizleri, MERSİS, İSKİ, GİB, MERNİS) + durum düğmeleri — node hx_ashisse.test.js <app.html> */
 const {chromium}=require('playwright');const fs=require('fs'),path=require('path'),http=require('http');
-const APP=path.resolve(process.argv[2]||'../out24.html');const FX=path.join(__dirname,'fxhx','Dosya Durum Rapor.xlsx');
+const APP=path.resolve(process.argv[2]||'../out25.html');const FX=['Dosya Durum Rapor.xlsx','Mernis.xlsx','Mersis.xlsx','Iski.xlsx'].map(f=>path.join(__dirname,'fxhx',f));
 let pass=0,fail=0;const ok=(c,m,x)=>{if(c){pass++;console.log('  ✓ '+m)}else{fail++;console.log('  ✗ '+m+(x!==undefined?' → '+JSON.stringify(x):''))}};
 (async()=>{const html='<!doctype html><html><head><meta charset=utf8></head><body>'+fs.readFileSync(APP,'utf8')+'</body></html>';
   const srv=http.createServer((q,r)=>{r.writeHead(200,{'content-type':'text/html; charset=utf-8'});r.end(html)}).listen(0);await new Promise(r=>srv.once('listening',r));
-  const b=await chromium.launch();const p=await b.newPage({viewport:{width:1440,height:1000},deviceScaleFactor:1});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+  const b=await chromium.launch();const p=await b.newPage({viewport:{width:1440,height:1000}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
   await p.addInitScript(()=>{localStorage.setItem('ia-arastiran','Test Kullanıcı')});
   await p.goto('http://127.0.0.1:'+srv.address().port+'/');await p.waitForTimeout(1200);await p.addScriptTag({path:path.join(__dirname,'node_modules/xlsx/dist/xlsx.full.min.js')});
   await p.evaluate(()=>{document.querySelectorAll('.modal-bg').forEach(x=>x.remove());hxSetMode(true)});await p.waitForFunction(()=>HX.ready===true,null,{timeout:20000});
-  await p.evaluate(()=>hxShow('yukle'));await p.waitForTimeout(150);await p.setInputFiles('#hxFile',[FX]);await p.waitForFunction(()=>HXI.files.length>0&&!HXI.prog);
+  await p.evaluate(()=>hxShow('yukle'));await p.waitForTimeout(150);await p.setInputFiles('#hxFile',FX);await p.waitForFunction(()=>HXI.files.length>=4&&!HXI.prog,null,{timeout:20000});
   await p.click('[data-hx-act="commit"]');await p.click('.modal [data-m="ok"]');await p.waitForFunction(()=>!HXI.busy&&!HXI.files.length,null,{timeout:30000});await p.waitForTimeout(1000);
-  /* test verisi: ortaklık kayıtları (bellekte) */
   await p.evaluate(()=>{const add=(did,a)=>HX.data.hx_research.push({id:'t'+Math.random(),debtorId:did,type:'ortaklik',kaynak:'test',alan:a});
     add('d1001',{'Firma Unvanı':'ÖRNEK DIŞ TİCARET KOLLEKTİF ŞİRKETİ','Mersis No':'01','Görev':'GERÇEK ORTAK','Aktif mi':'Aktif','İş Türü':''});
     add('d1001',{'Firma Unvanı':'DEMO BİLİŞİM A.Ş.','Mersis No':'02','Görev':'Yönetim Kurulu Üyesi','Aktif mi':'Pasif','İş Türü':'Yapılacak işlem yok'});
     add('d1005',{'Firma Unvanı':'ŞAHİN GIDA LTD. ŞTİ.','Mersis No':'03','Görev':'GERÇEK ORTAK','Aktif mi':'Aktif','İş Türü':''})});
-  console.log('\n1) Menü ve madalyon');
-  const nav=await p.evaluate(()=>!!document.querySelector('#bottomNav [data-hx="hisse"]'));ok(!nav,'Soldaki menüde “Şirket Hisse Hacizleri” yok');
+  /* ALİ'nin föyü (2024/1111) → Devam */
+  await p.click('#bottomNav .bn.hxn[data-hxb="dosyalar"]');await p.waitForFunction(()=>S.pid===HX_BPID&&S.debtors.length>0,null,{timeout:20000});await p.waitForTimeout(500);
+  await p.evaluate(()=>{const d=S.debtors.find(x=>x.m2==='2024/1111');const R=getR(d.i);R.durum='devam';delete R._fresh;touch(R)});await p.waitForTimeout(600);
+  console.log('\n1) Menü ve madalyonlar');
+  ok(!(await p.evaluate(()=>!!document.querySelector('#bottomNav [data-hx="hisse"]'))),'Soldaki menüde “Şirket Hisse Hacizleri” yok');
   await p.click('#bottomNav .bn.hxn[data-hxb="asama"]');await p.waitForFunction(()=>S.screen==='asama'&&!!document.querySelector('#asamaScreen .as-meds'),null,{timeout:15000});await p.waitForTimeout(300);
-  const m=await p.evaluate(()=>[...document.querySelectorAll('#asamaScreen .as-med')].map(x=>x.dataset.as+':'+x.querySelector('.as-mc').textContent));
-  ok(m[0]==='hisse:3'&&m[1].startsWith('faal'),'Hisse madalyonu GİB faal’in solunda (3 kayıt)',m);
+  await p.click('#asamaScreen [data-asd="devam"]');await p.waitForTimeout(300);
+  const m=await p.evaluate(()=>[...document.querySelectorAll('#asamaScreen .as-med')].slice(0,6).map(x=>x.querySelector('.as-ml').textContent+':'+x.querySelector('.as-mc').textContent));
+  console.log('   ',JSON.stringify(m));
+  ok(m.join('|')==='UYAP Şirket hacizleri:2|UYAP MERSİS adres:1|UYAP İSKİ adres:2|UYAP GİB:0|UYAP MERNİS adres:1|GİB faal:0','Sıra ve sayılar (Devam): Şirket hacizleri 2, MERSİS 1, İSKİ 2, GİB 0, MERNİS 1, sonra GİB faal',m);
+  console.log('\n2) UYAP Şirket hacizleri + durum düğmeleri');
   await p.click('#asamaScreen .as-med[data-as="hisse"]');await p.waitForTimeout(300);
-  const a=await p.evaluate(()=>({tabs:[...document.querySelectorAll('#asamaScreen [data-ashs]')].map(x=>x.innerText.replace(/\s+/g,' ')),cards:document.querySelectorAll('#asamaScreen [data-ashd]').length,
-    on:document.querySelector('#asamaScreen .as-med.on').dataset.as,faalOn:!!document.querySelector('#asamaScreen .as-med[data-as="faal"].on'),dur:!!document.querySelector('#asamaScreen .as-dur'),uy:document.querySelectorAll('#asamaScreen .md-uy').length}));
+  const a=await p.evaluate(()=>({dur:!!document.querySelector('#asamaScreen .as-dur'),durOn:(document.querySelector('#asamaScreen .as-dch.on')||{}).innerText,h2:document.querySelector('#asamaScreen .as-bar h2').innerText,tabs:[...document.querySelectorAll('#asamaScreen [data-ashs]')].map(x=>x.innerText.replace(/\s+/g,'')),cards:document.querySelectorAll('#asamaScreen [data-ashd]').length}));
   console.log('   ',JSON.stringify(a));
-  ok(a.cards===3&&a.on==='hisse'&&!a.faalOn,'Tıklayınca tamamı (3) görünüyor, yalnız hisse seçili');
-  ok(a.tabs.join('|')==='Tümü3|Aktif ortaklık2|Pasif ortaklık1|Haciz talebi gönderilecek2|İşlem yok1','Alt sekmeler ve sayıları: Tümü 3 / Aktif 2 / Pasif 1 / Haciz talebi 2 / İşlem yok 1',a.tabs);
-  ok(a.uy===3,'Her kartta “UYAP · Hisse haczi” etiketi');
+  ok(a.dur&&/Devam\s*1/.test(a.durOn),'Durum düğmeleri şirket hacizlerinde, sayılar kaynağa göre (Devam 1 dosya)',a.durOn);ok(/UYAP Şirket hacizleri · 2 kayıt/.test(a.h2),'Başlık: UYAP Şirket hacizleri',a.h2);
+  ok(a.tabs.join('|')==='Tümü2|Aktifortaklık1|Pasifortaklık1|Hacizt­alebigönderilecek1|İşlemyok1'.replace('­','')&&a.cards===2,'Alt sekmeler Devam’a göre sayılıyor',a.tabs);
+  await p.click('#asamaScreen [data-asd=""]');await p.waitForTimeout(300);
+  ok(await p.evaluate(()=>document.querySelectorAll('#asamaScreen [data-ashd]').length===1&&!!document.querySelector('#asamaScreen .as-med.on[data-as="hisse"]')),'Başlanmadı: 1 kayıt (EMRE ŞAHİN), şirket hacizleri seçili kalıyor');
   await p.screenshot({path:path.join(__dirname,'hx_ashisse.png')});
-  await p.click('#asamaScreen [data-ashs="aktif"]');await p.waitForTimeout(200);ok(await p.evaluate(()=>document.querySelectorAll('#asamaScreen [data-ashd]').length)===2,'Aktif sekmesi: 2');
-  await p.click('#asamaScreen [data-ashs="pasif"]');await p.waitForTimeout(200);ok(await p.evaluate(()=>document.querySelectorAll('#asamaScreen [data-ashd]').length)===1,'Pasif sekmesi: 1');
-  await p.click('#asamaScreen [data-ashs="all"]');await p.fill('#asQ','şahin');await p.waitForTimeout(500);ok(await p.evaluate(()=>document.querySelectorAll('#asamaScreen [data-ashd]').length)===1,'Arama çalışıyor');
-  await p.fill('#asQ','');await p.waitForTimeout(400);
-  console.log('\n2) Karta tıklayınca föy');
-  await p.click('#asamaScreen [data-ashd="d1005"]');await p.waitForTimeout(1500);
-  const f=await p.evaluate(()=>({scr:S.screen,ad:(S.debtors[S.sel]||{}).ad}));ok(f.scr==='dosyalar'&&f.ad==='EMRE ŞAHİN','EMRE ŞAHİN föyü açıldı',f);
-  console.log('\n3) Diğer madalyonlar bozulmadı');
+  console.log('\n3) MERSİS / İSKİ / MERNİS madalyonları');
+  await p.click('#asamaScreen [data-asd="devam"]');await p.waitForTimeout(200);
+  for(const [k,n,rx] of [['umersis',1,/İKİTELLİ OSB/],['uiski',2,/KADIKÖY MODA/],['umernis',1,/BARBAROS MAH/]]){await p.click(`#asamaScreen .as-med[data-as="${k}"]`);await p.waitForTimeout(250);
+    const r=await p.evaluate(()=>({n:document.querySelectorAll('#asamaScreen [data-ashd]').length,t:document.querySelector('#asamaScreen .as-main').innerText,tabs:[...document.querySelectorAll('#asamaScreen [data-ashs]')].map(x=>x.innerText.replace(/\s+/g,' '))}));
+    ok(r.n===n&&rx.test(r.t)&&/UYAP ·/.test(r.t),`${k}: ${n} kayıt, adres ve UYAP etiketi`,{n:r.n,tabs:r.tabs})}
+  await p.click('#asamaScreen .as-med[data-as="uiski"]');await p.waitForTimeout(200);
+  const it=await p.evaluate(()=>[...document.querySelectorAll('#asamaScreen [data-ashs]')].map(x=>x.dataset.ashs));ok(it.includes('Aktif')&&it.includes('Pasif'),'İSKİ alt sekmeleri: Aktif / Pasif',it);
+  await p.click('#asamaScreen [data-ashs="Pasif"]');await p.waitForTimeout(200);ok(await p.evaluate(()=>document.querySelectorAll('#asamaScreen [data-ashd]').length===1),'İSKİ Pasif: 1');
+  await p.screenshot({path:path.join(__dirname,'hx_asiski.png')});
+  console.log('\n4) Karta tıklayınca föy; diğer madalyonlar bozulmadı');
+  await p.click('#asamaScreen [data-ashd="d1001"]');await p.waitForTimeout(1500);
+  const f=await p.evaluate(()=>({scr:S.screen,m2:(S.debtors[S.sel]||{}).m2}));ok(f.scr==='dosyalar'&&f.m2==='2024/1111','2024/1111 föyü açıldı',f);
   await p.click('#bottomNav .bn.hxn[data-hxb="asama"]');await p.waitForTimeout(800);await p.click('#asamaScreen .as-med[data-as="faal"]');await p.waitForTimeout(300);
   const g=await p.evaluate(()=>({on:document.querySelector('#asamaScreen .as-med.on').dataset.as,h2:document.querySelector('#asamaScreen .as-bar h2').innerText}));ok(g.on==='faal'&&/GİB faal/.test(g.h2),'GİB faal normal açılıyor',g);
-  await p.setViewportSize({width:430,height:1400});await p.click('#asamaScreen .as-med[data-as="hisse"]');await p.waitForTimeout(400);
-  ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Telefonda yatay taşma yok');await p.screenshot({path:path.join(__dirname,'hx_ashisse_tel.png')});
+  await p.setViewportSize({width:430,height:1400});await p.click('#asamaScreen .as-med[data-as="umersis"]');await p.waitForTimeout(400);
+  ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Telefonda yatay taşma yok');
   console.log('\nSayfa hataları:',errs.length?errs:'yok');if(errs.length)fail++;
   console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);await b.close();srv.close();process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});
