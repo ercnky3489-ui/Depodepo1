@@ -38,6 +38,7 @@ const H=__dirname;const APP=path.resolve(process.argv[2]);const FX=['Dosya Durum
     ['gecmis',async()=>{await p.evaluate(()=>hxShow('gecmis'));await p.waitForTimeout(400)}],
     ['yukle',async()=>{await p.evaluate(()=>hxShow('yukle'));await p.waitForTimeout(400)}],
     ['ozet',async()=>{await p.evaluate(()=>hxShow('ozet'));await p.waitForTimeout(400)}],
+    ['matrix',async()=>{await p.evaluate(()=>mtsShow());await p.waitForTimeout(700)}],
     ['ayarlar',async()=>{await p.evaluate(()=>openA11y());await p.waitForTimeout(300)}]];
   const res={};
   for(const k of ['klasik','neon3d','altin','arktik','zumcam']){await p.evaluate(k=>{document.querySelectorAll('.modal-bg').forEach(x=>x.remove());pref('tema',k==='klasik'?'':k);applyA11y()},k);await p.waitForTimeout(200);res[k]={};
