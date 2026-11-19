@@ -1,6 +1,6 @@
 /* MATRİX TAKİP SİSTEMİ · Aşama 4 — raporlama merkezi + portföy karşılaştırma — node pcc4.test.js <app.html> */
 const {chromium}=require('playwright');const fs=require('fs'),path=require('path'),http=require('http');
-const APP=path.resolve(process.argv[2]||'../out36.html');
+const APP=path.resolve(process.argv[2]||'../out37.html');
 let pass=0,fail=0;const ok=(c,m,x)=>{if(c){pass++;console.log('  ✓ '+m)}else{fail++;console.log('  ✗ '+m+(x!==undefined?' → '+JSON.stringify(x).slice(0,500):''))}};
 const T1='11111111110',T2='22222222220',T3='33333333330',TK='44444444440',T9='99999999990';
 (async()=>{const html='<!doctype html><html><head><meta charset=utf8></head><body>'+fs.readFileSync(APP,'utf8')+'</body></html>';
