@@ -34,13 +34,13 @@ const T1='11111111110',T2='22222222220',T3='33333333330',TK='44444444440',T9='99
   ok(pc.length===3&&/Portföy A/.test(pc[0])&&/Müşteri 3/.test(pc[0])&&/İcra dosyası 3/.test(pc[0])&&/Toplam borç 60\.000 ₺/.test(pc[0])&&/Olumlu sonuç 1/.test(pc[0])&&/Çakışan müşteri 1 \+1 olası/.test(pc[0])&&/Çakışan dosya 0 \+1 olası/.test(pc[0]),'Portföy A kartı: müşteri, dosya, borç, olumlu, çakışan müşteri/dosya',pc[0]);
   ok(await p.evaluate(()=>document.querySelectorAll('.mts-pf svg.mts-sp path').length>=2),'Kartlarda trend grafiği var');
   console.log('\n4) Çakışma tablosu');
-  const tb=await p.evaluate(()=>[...document.querySelectorAll('.mts-tw tbody tr')].map(x=>x.innerText.replace(/\s+/g,' ')));console.log('    ',tb.slice(0,3).join(' || '));
+  const tb=await p.evaluate(()=>[...document.querySelectorAll('.mts-tbl .mts-tw tbody tr')].map(x=>x.innerText.replace(/\s+/g,' ')));console.log('    ',tb.slice(0,3).join(' || '));
   const ah=tb.find(x=>/^AHMET YILMAZ/.test(x));ok(ah&&/111\*+10/.test(ah)&&/2024\/12345/.test(ah)&&/Portföy A/.test(ah)&&/Portföy B/.test(ah)&&/\+1/.test(ah)&&/Ortak müşteri/.test(ah)&&/Ortak icra dosyası/.test(ah)&&/Kesin/.test(ah),'AHMET: maskeli TCKN, 2024/12345, A / B +1, “Ortak müşteri + ortak icra dosyası”, kesin',ah);
   ok(tb.some(x=>/MEHMET DEMİR/.test(x)&&/Olası · onay bekler/.test(x)),'İsim eşleşmesi tabloda “Olası · onay bekler”');
-  ok(await p.evaluate(()=>document.querySelectorAll('.mts-tw tbody tr:first-child .mts-acts button').length)===5,'Her satırda 5 işlem: Detay, Dosya, Müşteri, İlişki, Araştır');
+  ok(await p.evaluate(()=>document.querySelectorAll('.mts-tbl .mts-tw tbody tr:first-child .mts-acts button').length)===5,'Her satırda 5 işlem: Detay, Dosya, Müşteri, İlişki, Araştır');
   await p.screenshot({path:path.join(__dirname,'mts_d.png'),fullPage:false});
   console.log('\n5) KPI tıklama → ilgili detay');
-  await p.click('.mts-kpi[data-mts-kpi="dupCust"]');await p.waitForTimeout(300);ok(await p.evaluate(()=>MTS.f.t==='A'&&MTS.f.lvl==='kesin'&&[...document.querySelectorAll('.mts-tw tbody tr')].every(x=>/Ortak müşteri/.test(x.innerText))),'“Mükerrer müşteri” → tablo ortak müşteri (kesin) ile süzülüyor');
+  await p.click('.mts-kpi[data-mts-kpi="dupCust"]');await p.waitForTimeout(300);ok(await p.evaluate(()=>MTS.f.t==='A'&&MTS.f.lvl==='kesin'&&[...document.querySelectorAll('.mts-tbl .mts-tw tbody tr')].every(x=>/Ortak müşteri/.test(x.innerText))),'“Mükerrer müşteri” → tablo ortak müşteri (kesin) ile süzülüyor');
   await p.click('.mts-chips [data-mts-ft=""]');await p.click('.mts-chips [data-mts-fl=""]');await p.waitForTimeout(200);
   await p.click('.mts-kpi[data-mts-kpi="cust"]');await p.waitForSelector('.modal .mts-mt');const km=await p.evaluate(()=>[...document.querySelectorAll('.modal .mts-mt tbody tr')].map(x=>x.innerText.replace(/\s+/g,' ')));
   ok(km.length===3&&/Portföy A 3/.test(km[0]),'“Toplam müşteri” → portföy bazında döküm',km);await p.evaluate(()=>document.querySelectorAll('.modal-bg').forEach(x=>x.remove()));
@@ -56,9 +56,8 @@ const T1='11111111110',T2='22222222220',T3='33333333330',TK='44444444440',T9='99
   await p.click(`.mts-tw tr[data-mts-row="${ia}"] [data-mts-a="cust"]`);await p.waitForSelector('.modal .mts-cc');
   const cu=await p.evaluate(()=>[...document.querySelectorAll('.modal .mts-cc h4')].map(x=>x.textContent));ok(['Portföy A','Portföy B','Portföy C'].every(x=>cu.includes(x)),'AHMET’in A, B, C kayıtları tek müşteri ekranında',cu);
   await p.evaluate(()=>document.querySelectorAll('.modal-bg').forEach(x=>x.remove()));
-  await p.click(`.mts-tw tr[data-mts-row="${ia}"] [data-mts-a="rel"]`);await p.waitForSelector('.modal .mts-rel li');
-  const rl=await p.evaluate(()=>[...document.querySelectorAll('.modal .mts-rel li')].map(x=>x.innerText.replace(/\s+/g,' ')));ok(rl.some(x=>/Ortak kefil/.test(x))&&rl.some(x=>/Ortak icra dosyası/.test(x)),'İlişkiler: ortak kefil ve ortak icra dosyası bağları',rl);
-  await p.evaluate(()=>document.querySelectorAll('.modal-bg').forEach(x=>x.remove()));
+  await p.click(`.mts-tw tr[data-mts-row="${ia}"] [data-mts-a="rel"]`);await p.waitForTimeout(600);
+  const rl=await p.evaluate(()=>MN.nodes.map(n=>n.t+':'+n.label));ok(rl.some(x=>/^kef:MEHMET YILMAZ/.test(x))&&rl.some(x=>/^file:2024\/12345/.test(x)),'“İlişki” → haritada ortak kefil ve ortak icra dosyası bağları',rl);
   console.log('\nTEST 6) Tablodan portföye / dosyaya doğrudan gitme');
   await p.click(`.mts-tw tr[data-mts-row="${ia}"] [data-mts-a="file"]`);await p.waitForTimeout(1500);
   const g=await p.evaluate(()=>({scr:S.screen,pid:S.pid,ad:(S.debtors[S.sel]||{}).ad}));ok(g.scr==='dosyalar'&&g.ad==='AHMET YILMAZ'&&['pA','pB','pC'].includes(g.pid),'“Dosya” → ilgili portföyde AHMET YILMAZ föyü açıldı',g);
