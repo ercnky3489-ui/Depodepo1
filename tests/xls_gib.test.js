@@ -8,8 +8,8 @@ async function run(b,APP){const html='<!doctype html><html><head><meta charset=u
   await p.addInitScript(()=>{localStorage.setItem('ia-arastiran','Test')});await p.goto('http://127.0.0.1:'+srv.address().port+'/');await p.waitForTimeout(1200);
   await p.evaluate(async()=>{const row=(i,ad,k,o)=>Object.assign({i,ad,kimlik:k,sirket:false,m:'M'+i,m2:'',gib:'',anapara:5,toplam:10,not:'',kef:[],x:{}},o||{});
     await Store.savePortfolio('pA',{name:'A',importedAt:'2026-11-01T10:00:00Z',count:3},[row(0,'ŞERİFE KARABOĞA','11111111110'),row(1,'emine gündoğdu','22222222220'),row(2,'ABC LTD ŞTİ','1234567890',{sirket:true})]);
-    await Store.saveResearch({pid:'pA',idx:0,durum:'devam',sonuc:'',companies:[],updatedAt:new Date().toISOString(),persons:[newPerson({ad:'ŞERİFE KARABOĞA',kimlik:'11111111110',rol:'Borçlu',babaAdi:'Hayrettin',dogumYeri:'KONYA',dogum:'1934-01-01'}),newPerson({ad:'Saadet Nur Aydın',kimlik:'33333333330',rol:'Kefil',babaAdi:'MUSTAFA',dogumYeri:'diyarbakır',dogum:'01/01/1953'})]});
-    await Store.saveResearch({pid:'pA',idx:1,durum:'devam',sonuc:'',companies:[],updatedAt:new Date().toISOString(),persons:[newPerson({ad:'emine gündoğdu',kimlik:'22222222220',rol:'Borçlu',babaAdi:'HASAN',dogumYeri:'Erzurum',dogum:'01.01.1952'})]})});
+    await Store.saveResearch({pid:'pA',idx:0,durum:'devam',sonuc:'',companies:[],updatedAt:new Date().toISOString(),persons:[newPerson({ad:'ŞERİFE KARABOĞA',kimlik:'11111111110',rol:'Borçlu',babaAdi:'Hayrettin',dogumYeri:'KONYA / SELÇUKLU',dogum:'1934-01-01'}),newPerson({ad:'Saadet Nur Aydın',kimlik:'33333333330',rol:'Kefil',babaAdi:'MUSTAFA',dogumYeri:'diyarbakır-bağlar',dogum:'01/01/1953'})]});
+    await Store.saveResearch({pid:'pA',idx:1,durum:'devam',sonuc:'',companies:[],updatedAt:new Date().toISOString(),persons:[newPerson({ad:'emine gündoğdu',kimlik:'22222222220',rol:'Borçlu',babaAdi:'HASAN',dogumYeri:'ERZURUM (YAKUTİYE)',dogum:'01.01.1952'})]})});
   await p.reload();await p.waitForTimeout(2500);await p.evaluate(()=>openPortfolio('pA'));await p.waitForTimeout(1500);
   const r=await p.evaluate(()=>{const {wb}=buildWorkbook();const g=n=>XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:''});return {oz:g('Özet'),kis:g('Kişiler'),sir:g('Şirketler')}});
   await ctx.close();srv.close();return r}
@@ -20,7 +20,7 @@ async function run(b,APP){const html='<!doctype html><html><head><meta charset=u
     const tsc=o[0].indexOf('Son Güncelleme');const cut=r=>r.slice(0,w).map((x,j)=>j===tsc?'':String(x));const bad=o.findIndex((row,i)=>JSON.stringify(cut(n[i]))!==JSON.stringify(cut(row)));ok(bad<0,sh+': önceki sütunlar ve değerler aynı (zaman damgası hariç)',bad<0?'':[o[bad],n[bad]]);}
   ok(JSON.stringify(N.sir)===JSON.stringify(O.sir),'Şirketler sayfası değişmedi');
   const K=N.kis.slice(1).map(r=>r.slice(-5));console.log('    Kişiler GİB:',JSON.stringify(K));
-  ok(JSON.stringify(K)===JSON.stringify([['ŞERİFE','KARABOĞA','HAYRETTİN','Konya','01.01.1934'],['SAADET NUR','AYDIN','MUSTAFA','Diyarbakır','01.01.1953'],['EMİNE','GÜNDOĞDU','HASAN','Erzurum','01.01.1952']]),'Kişiler: ad/soyad ayrımı, büyük harf, doğum yeri ve tarih biçimi');
+  ok(JSON.stringify(K)===JSON.stringify([['ŞERİFE','KARABOĞA','HAYRETTİN','Konya','01.01.1934'],['SAADET NUR','AYDIN','MUSTAFA','Diyarbakır','01.01.1953'],['EMİNE','GÜNDOĞDU','HASAN','Erzurum','01.01.1952']]),'Kişiler: ad/soyad ayrımı, büyük harf, doğum yerinde yalnız şehir, tarih biçimi');
   const Z=N.oz.slice(1).map(r=>r.slice(-5));console.log('    Özet GİB:',JSON.stringify(Z));
   ok(Z[0][0]==='ŞERİFE'&&Z[1][1]==='GÜNDOĞDU'&&Z[2].every(x=>x===''),'Özet: borçlunun GİB bilgileri; şirket borçluda boş',Z);
   console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);await b.close();process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});
