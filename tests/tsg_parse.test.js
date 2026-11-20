@@ -128,4 +128,99 @@ ok(k('Mehmet Sınama')&&k('Mehmet Sınama').guncel===false&&k('Can Örnek')&&k('
 ok(co.kisiler.filter(q=>q.ad==='Mehmet Sınama').length===1,'Aynı kişi (TCKN\'li ve TCKN\'siz ilan) tek kayıt');
 ok(gi&&gi.durum==='Tasfiye halinde'&&gi.kisiler.some(q=>q.ad==='Ayşe Deneme'&&q.gorevler.includes('Tasfiye memuru')),'Tasfiye ve tasfiye memuru',gi&&{d:gi.durum,k:gi.kisiler.map(q=>[q.ad,q.gorevler])});
 const rel=ag.iliskiler.find(x=>x.ad==='Ayşe Deneme');ok(rel&&rel.sirketler.length===2,'Şirketler arası ilişki: aynı kişi iki şirkette',ag.iliskiler.map(x=>[x.ad,x.sirketler.map(s=>s.unvan)]));
+/* eski düzen (2000'ler, İstanbul): çizgili başlık, "Ticari Merkezi", Konu yok, TCKN'siz kurucular, satır sonu tirelemesi */
+const O1=`İstanbul — Ticaret — Sicili
+Memurluğundan
+
+Sicil no:123456 - 98765
+
+Ticaret Ünvanı
+ÖRNEK DAĞITIM DIŞ
+TİCARET LİMİTED
+ŞİRKETİ
+
+Ticari — İkametgahı:İstanbul
+Ümraniye Örnek Mah. Deneme Cad. No.5
+
+Ticari Merkezi ile sicil numarası
+ve ünvanı yukarıda yazılı ve kurulmuş
+olan limited şirketin esas mukavelesinin
+tescil ve ilanı istenmiş olmakla
+dayanılarak 23.7.2001 tarihinde
+tescil edildiği ilan olunur.
+
+Kuruluş
+Madde 1
+Aşağıda adları soyadları ikamet-
+gahları yazılı kurucular arasında bir
+limited şirket kurulmuştur.
+
+1- TC.Uyruklu Kemal Deneme
+
+Maltepe Mah. Örnek Sok. No.1
+
+2- TC.Uyruklu
+
+Leyla Sınama
+
+Dudullu Mah. No.20
+
+Ünvan
+Madde 2
+Şirketin ünvanı Örnek Dağıtım'dır.
+(5/A)(1/1)
+
+İstanbul        Ticaret        Sicili
+Memurluğundan
+
+Sicil Numarası : 123456 -
+98765
+
+Ticaret Ünvanı
+ÖRNEK DAĞITIM DIŞ
+TİCARET LİMİTED ŞİRKETİ
+
+Ticari Merkezi : İstanbul Kartal Yeni Mah. No.8
+
+Ticari merkezi ile sicil numarası
+ve ünvanı yukarıda yazılı bulunan
+şirketin ortaklar kurulu kararının tescil
+ve ilanı istenmiş olmakla
+dayanılarak 19.112007 tarihinde
+tescil edildiği ilan olunur.
+
+Karar Konusu: Şube kapanışı ve
+merkez nakli
+
+Toplantıya Katılanlar: Leyla Sı-
+nama, Okan Örnek
+
+1) Şirket Müdürü Kemal Deneme'nin şirket
+müdürlüğünden azline,
+
+2) Okan Örnek'in 5 (beş) yıl süre
+ile şirket müdürü seçilmesine,
+
+3) Kartal adresinde bulunan şubesinin kap-
+atılmasına, şirket merkezinin Kartal Yeni Mah. No.8
+adresine taşınmasına, adres nakil edilmesine,
+
+Şirketin sermayesi 750.000 YTL olup bunun;
+
+450.000 YTL si Okan Örnek
+
+300.000 YTL si Leyla Sı-
+nama na aittir.
+
+Ortak
+Okan Örnek İmza
+(5/A)(2/2)`;
+const ro=T.tsgParse([{p:1,gp:5,t:O1}]);const o1=ro.ilanlar[0],o2=ro.ilanlar[1];
+ok(ro.ilanlar.length===2&&o1.sicil==='123456-98765'&&o1.unvan==='ÖRNEK DAĞITIM DIŞ TİCARET LİMİTED ŞİRKETİ'&&o1.tescil==='23.07.2001'&&/Ümraniye/.test(o1.adres||''),'Eski düzen: çizgili başlık, satır atlayan sicil, "Ticari İkametgahı", "hususların"sız tescil',ro.ilanlar.map(i=>[i.sicil,i.unvan,i.tescil,i.adres]));
+ok(o1.kisiler.map(k=>k.ad).sort().join()==='Kemal Deneme,Leyla Sınama'&&o1.turler.includes('Şirket kuruluşu')&&!o1.turler.includes('Ortaklık değişikliği'),'TCKN\'siz kurucular ("TC.Uyruklu Ad Soyad") ve kuruluş türü',{k:o1.kisiler.map(k=>[k.ad,k.roller.map(r=>r.r)]),t:o1.turler});
+ok(o2&&o2.tescil==='19.11.2007'&&/Şube kapanışı/.test(o2.konu||'')&&o2.turler.includes('Şube kapanışı')&&o2.turler.includes('Adres değişikliği')&&o2.turler.includes('Müdür ataması')&&o2.sermaye&&o2.sermaye.v===750000,'"Karar Konusu", OCR\'da noktası düşmüş tarih, türler ve sermaye',o2&&{t:o2.tescil,k:o2.konu,tr:o2.turler,s:o2.sermaye});
+const ls=o2.kisiler.find(k=>k.ad==='Leyla Sınama'),ok2=o2.kisiler.find(k=>k.ad==='Okan Örnek'),kd=o2.kisiler.find(k=>k.ad==='Kemal Deneme');
+ok(ls&&ls.pay&&ls.pay.tutar==='300.000,00 YTL'&&ok2&&ok2.roller.some(r=>r.r==='Müdür')&&kd&&kd.roller.some(r=>r.r==='Görevi sona erdi')&&!kd.roller.some(r=>r.r==='Müdür'&&r.d==='19.11.2007')&&!o2.kisiler.some(k=>/Müdürü|Sı$/.test(k.ad)),'Tirelemeyle bölünen ad, paylar, müdür atama ve azil ayrı kişilere',o2.kisiler.map(k=>[k.ad,k.roller.map(r=>r.r),k.pay&&k.pay.tutar]));
+const ago=T.tsgAggregate([{id:'o',name:'o.pdf',ana:ro}]);const oc=ago.sirketler[0];
+ok(ago.sirketler.length===1&&oc.kisiler.find(k=>k.ad==='Kemal Deneme').guncel===false&&oc.adresler.length===2,'Aynı sicilin iki yazımı tek şirket; azledilen müdür geçmiş',ago.sirketler.map(c=>[c.sicil,c.kisiler.map(k=>[k.ad,k.guncel])]));
 console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);process.exit(fail?1:0);
