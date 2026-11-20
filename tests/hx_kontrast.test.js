@@ -25,7 +25,7 @@ const H=__dirname;const APP=path.resolve(process.argv[2]);const FX=['Dosya Durum
       const fg=parse(cs.color);if(!fg)return;const bg=bgOf(el);const f2=mix(fg,bg);const L1=lum(f2),L2=lum(bg);const cr=(Math.max(L1,L2)+.05)/(Math.min(L1,L2)+.05);
       if(cr<4.5){const key=(el.className||el.tagName)+'|'+own.slice(0,30);if(seen.has(key))return;seen.add(key);out.push({cr:+cr.toFixed(2),t:own.slice(0,40),cls:String(el.className||el.tagName).slice(0,40),fg:cs.color,bg:`rgb(${bg.r|0},${bg.g|0},${bg.b|0})`})}});
     return out};
-  const screens=[['föy-toplu',async()=>{await p.click('#bottomNav .bn.hxn[data-hxb="dosyalar"]');await p.waitForTimeout(400);await p.evaluate(()=>{const d=S.debtors.find(x=>x.m2==='2024/1111');select(d.i);S.tab='toplu';renderCard()});await p.waitForTimeout(300)}],
+  const screens=[['föy-toplu',async()=>{/* açılış MATRİX: İstanbul föyleri açılış ekranından seçilir */if(await p.evaluate(()=>S.screen==='mts'))await p.click('.mts-gt[data-mts-pf="'+(await p.evaluate(()=>HX_BPID))+'"]');else await p.click('#bottomNav .bn.hxn[data-hxb="dosyalar"]');await p.waitForTimeout(800);await p.waitForTimeout(400);await p.evaluate(()=>{const d=S.debtors.find(x=>x.m2==='2024/1111');select(d.i);S.tab='toplu';renderCard()});await p.waitForTimeout(300)}],
     ['föy-detay',async()=>{await p.evaluate(()=>{S.tab='tdetay';renderCard()});await p.waitForTimeout(300)}],
     ['föy-uyap',async()=>{await p.evaluate(()=>{const b=document.querySelector('#cardPane .hxf-tab');b&&b.click()});await p.waitForTimeout(300)}],
     ['föy-kişi',async()=>{await p.evaluate(()=>{S.tab='kisi';renderCard()});await p.waitForTimeout(300)}],
