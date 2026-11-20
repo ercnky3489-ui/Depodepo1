@@ -3,8 +3,9 @@
 (function(){const store=new Map();const subs=new Set();const LIM=256*1024;window.__fakeDb={store,writes:0,errors:[]};
   const err=(code,msg)=>{const e=new Error(msg);e.code=code;window.__fakeDb.errors.push(code+': '+msg);return e};
   const clone=o=>JSON.parse(JSON.stringify(o));
+  const dfz=o=>{if(o&&typeof o==='object'){Object.freeze(o);Object.values(o).forEach(dfz)}return o};
   const colOf=p=>p.split('/').slice(0,-1).join('/');
-  const snapDoc=(path)=>({id:path.split('/').pop(),exists:store.has(path),data:()=>store.has(path)?clone(store.get(path)):undefined,ref:{path}});
+  const snapDoc=(path)=>({id:path.split('/').pop(),exists:store.has(path),data:()=>store.has(path)?dfz(clone(store.get(path))):undefined,ref:{path}});
   const notify=()=>subs.forEach(s=>{try{s()}catch(e){}});
   function query(col,f=[],lim=null){const q={path:col,
     where:(k,op,v)=>query(col,f.concat([[k,op,v]]),lim),orderBy:()=>q,limit:n=>{if(n<1||n>1000)throw err('invalid_argument','limit 1..1000');return query(col,f,n)},

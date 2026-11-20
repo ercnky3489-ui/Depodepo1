@@ -24,6 +24,12 @@ let pass=0,fail=0;const ok=(c,m,x)=>{if(c){pass++;console.log('  ✓ '+m)}else{f
   ok(r.stats.bigA===2000&&r.stats.bigB===2000,'Her iki portföyün istatistiği var',r.stats);
   ok(!r.dbErr.length,'Veritabanı sınırlarına takılan yazma yok',r.dbErr);
   const r2=await p.evaluate(async()=>{await pccRun({why:'ikinci'});return {A:PCC.res.counts.A.kesin,built:PCC.state.runs[0].built}});ok(r2.A===300&&r2.built===0,'İkinci çalışmada dizinler veritabanından okundu (yeniden kurulmadı)',r2);
+  /* gerçek veritabanındaki eski biçim: "seen" durum dokümanının içinde, okununca dondurulmuş gelir */
+  const r3=await p.evaluate(async()=>{const st=JSON.parse(__fakeDb.store.get('pcc/state')?JSON.stringify(__fakeDb.store.get('pcc/state')):'{}');const seen={};
+    Object.keys(st).forEach(k=>{if(/^seen/.test(k))delete st[k]});[...__fakeDb.store.keys()].filter(k=>/^pcc\/seen_/.test(k)).forEach(k=>__fakeDb.store.delete(k));
+    st.seen={'A:eski':{f:1,g:'x'}};st.runs=st.runs||[];__fakeDb.store.set('pcc/state',st);PCC.state=null;let e=null;try{await pccRun({why:'eski-durum'})}catch(x){e=String(x)}
+    return {e,err:PCC.err&&PCC.err.msg,A:PCC.res&&PCC.res.counts.A.kesin,old:!!(PCC.state.seen||{})['A:eski']}});
+  ok(!r3.e&&!r3.err&&r3.A===300&&r3.old,'Eski biçim (dondurulmuş) durum kaydıyla karşılaştırma tamamlanıyor',r3);
   await p.evaluate(()=>showScreen('mts'));await p.waitForTimeout(800);
   const k=await p.evaluate(()=>Object.fromEntries([...document.querySelectorAll('.mts-kpi')].map(x=>[x.dataset.mtsKpi,+x.querySelector('b').textContent.replace(/\D/g,'')])));
   ok(k.pf===2&&k.dupCust===300&&k.files===4000,'MATRİX göstergeleri: 2 portföy, 300 mükerrer müşteri, 4000 dosya',k);
