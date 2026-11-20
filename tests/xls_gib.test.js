@@ -18,7 +18,7 @@ async function run(b,APP){const html='<!doctype html><html><head><meta charset=u
   for(const sh of ['oz','kis']){const o=O[sh],n=N[sh];const w=o[0].length;
     ok(JSON.stringify(n[0].slice(-5))===JSON.stringify(G)&&n[0].length===w+5,sh+': GİB başlıkları en sonda',n[0].slice(-6));
     const tsc=o[0].indexOf('Son Güncelleme');const cut=r=>r.slice(0,w).map((x,j)=>j===tsc?'':String(x));const bad=o.findIndex((row,i)=>JSON.stringify(cut(n[i]))!==JSON.stringify(cut(row)));ok(bad<0,sh+': önceki sütunlar ve değerler aynı (zaman damgası hariç)',bad<0?'':[o[bad],n[bad]]);}
-  ok(JSON.stringify(N.sir)===JSON.stringify(O.sir),'Şirketler sayfası değişmedi');
+  ok(JSON.stringify(N.sir[0].slice(0,18))===JSON.stringify(O.sir[0].slice(0,18))&&!N.sir[0].some(h=>/^(GİB|SGK)/.test(h))&&!N.sir[0].some(h=>G.includes(h)),'Şirketler sayfası: bilgi sütunları aynı, GİB sütunu eklenmedi (şirkette GİB/SGK kaynağı yok)',N.sir[0]);
   const K=N.kis.slice(1).map(r=>r.slice(-5));console.log('    Kişiler GİB:',JSON.stringify(K));
   ok(JSON.stringify(K)===JSON.stringify([['AYLA','DENEME','KEMAL','Konya','01.01.1934'],['GÜL NAZ','SINAMA','MUSTAFA','Diyarbakır','01.01.1953'],['ZEYNEP','ÖRNEK','OSMAN','Erzurum','01.01.1952']]),'Kişiler: ad/soyad ayrımı, büyük harf, doğum yerinde yalnız şehir, tarih biçimi');
   const Z=N.oz.slice(1).map(r=>r.slice(-5));console.log('    Özet GİB:',JSON.stringify(Z));

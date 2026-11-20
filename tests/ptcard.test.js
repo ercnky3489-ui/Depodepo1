@@ -7,7 +7,7 @@ const APP=path.resolve(process.argv[2]);let pass=0,fail=0;const ok=(c,m,x)=>{if(
   await ctx.route(/cdnjs\.cloudflare\.com/,r=>r.abort());
   await p.addInitScript(()=>{localStorage.setItem('ia-arastiran','Test')});await p.goto('http://127.0.0.1:'+srv.address().port+'/');await p.waitForTimeout(1200);
   await p.evaluate(async()=>{await Store.savePortfolio('pA',{name:'A',importedAt:'2026-11-01T10:00:00Z',count:1},[{i:0,ad:'TEST BORÇLU KİŞİ',kimlik:'11111111110',sirket:false,m:'1',m2:'',gib:'',anapara:5,toplam:10,not:'',kef:[],x:{}}]);
-    await Store.saveResearch({pid:'pA',idx:0,durum:'devam',sonuc:'',companies:[],updatedAt:new Date().toISOString(),persons:[newPerson({ad:'TEST BORÇLU KİŞİ',kimlik:'11111111110',rol:'Borçlu'}),newPerson({ad:'TEST KEFİL KİŞİ',kimlik:'33333333330',rol:'Kefil',babaAdi:'BABA',anneAdi:'ANNE',dogumYeri:'İl / İlçe',dogum:'01.01.1953'})]})});
+    await Store.saveResearch({pid:'pA',idx:0,durum:'devam',sonuc:'',companies:[],updatedAt:new Date().toISOString(),persons:[newPerson({ad:'TEST BORÇLU KİŞİ',kimlik:'11111111110',rol:'Borçlu'}),Object.assign(newPerson({ad:'TEST KEFİL KİŞİ',kimlik:'33333333330',rol:'Kefil',babaAdi:'BABA',anneAdi:'ANNE',dogumYeri:'İl / İlçe',dogum:'01.01.1953'}),{src:{gib:{s:'yok',n:''},sgk:{s:'yok',n:''},sgkyet:{s:'var',n:'x'},mersis:{s:'yok',n:''},tsg:{s:'yok',n:''}}})]})});
   await p.reload();await p.waitForTimeout(2000);await p.evaluate(async()=>{await openPortfolio('pA');showScreen('dosyalar');select(0)});await p.waitForTimeout(1200);
   const chk=async(lbl)=>{const r=await p.evaluate(()=>{const c=[...document.querySelectorAll('.pt-card')].find(x=>/TEST KEFİL/.test(x.textContent));if(!c)return null;c.scrollIntoView();const R=e=>e.getBoundingClientRect();
       const sum=c.querySelector(':scope > .pt-sum'),m=sum.querySelector('.pt-m'),tb=sum.querySelector(':scope > .pt-tabs'),ac=sum.querySelector('.pt-acts'),body=c.querySelector('.pt-body');const i=sum.querySelector('.pt-i');const sp=[...i.children].filter(x=>getComputedStyle(x).display!=='none');
@@ -16,6 +16,13 @@ const APP=path.resolve(process.argv[2]);let pass=0,fail=0;const ok=(c,m,x)=>{if(
     console.log('    '+lbl,JSON.stringify(r));return r};
   let r=await chk('1440');ok(r&&r.inHead&&r.tabsRow==='row'&&r.tabsBelowTc&&Math.abs(r.tabsLeft)<4&&r.noOldTabs,'Sekmeler başlıkta, ad/TCKN satırının altında, yatay',r);
   ok(r.acRightOfName&&r.acTop<60&&!r.overflow,'İşlem düğmeleri adın sağındaki boşlukta, taşma yok',r);ok(r.dobBelow&&r.noBaba&&r.oneLine,'Başlık: rol+ad tek satır, doğum tarihi TCKN yanında, baba yok',r);ok(r.bodyW>r.cardW-40,'İçerik kartın tüm genişliğini kullanıyor',r);
+  const pg=await p.evaluate(()=>{const c=document.querySelector('.pt-card.pt-kefil');const g=c.querySelector(':scope > .pt-prog');if(!g)return null;const R=e=>e.getBoundingClientRect();const cr=R(c);
+    const t=g.querySelector('.pt-line.t'),bt=g.querySelector('.pt-line.b'),hx=g.querySelector('.pt-hex');return {n:g.querySelector('.pt-hexn').textContent,tw:Math.round(R(t).width/cr.width*1000)/10,bw:Math.round(R(bt).width/cr.width*1000)/10,
+      top:Math.round(R(t).top-cr.top),bot:Math.round(cr.bottom-R(bt).bottom),hexIn:R(hx).height>100,ring:getComputedStyle(c.querySelector('.pt-ring')).display,pe:getComputedStyle(g).pointerEvents,sticky:getComputedStyle(c.querySelector('.pt-sum')).position}});
+  console.log('    ilerleme',JSON.stringify(pg));
+  const fr=pg&&pg.n.split('/').map(Number),exp=fr?fr[0]/fr[1]*100:0;ok(pg&&fr[0]>0&&Math.abs(pg.tw-exp)<1.5&&Math.abs(pg.bw-exp)<1.5&&pg.top<=1&&pg.bot<=1,'Üst ve alt kenarda ilerleme kadar neon çizgi (2): '+(pg&&pg.n),pg);
+  ok(pg&&pg.hexIn&&pg.ring==='none'&&pg.pe==='none'&&pg.sticky==='sticky','Altıgen madalyon (9), küçük halka yerine; tıklamaları engellemiyor',pg);
+  await p.click('.pt-card.pt-kefil [data-act="ent-detail"]');await p.click('.pt-card.pt-kefil [data-act="ent-detail"]');
   const card=await p.$('.pt-card:has(.pt-rt.r-kefil), .pt-card.pt-kefil');await card.screenshot({path:path.join(__dirname,'ptcard_1440.png')});
   const an=async()=>p.evaluate(()=>{const l=[...document.querySelectorAll('.pt-card.pt-kefil .pchip')].find(x=>/Anne adı/.test(x.textContent));return l&&getComputedStyle(l).display!=='none'});
   const ab=await p.evaluate(()=>{const L=[...document.querySelectorAll('.pt-card.pt-kefil .pt-pane[data-pt="kis"] .pchip')].filter(x=>getComputedStyle(x).display!=='none').map(x=>x.querySelector('.pchip-l').textContent);return L});
