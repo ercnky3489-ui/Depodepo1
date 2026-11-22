@@ -72,6 +72,18 @@ export default function ReadingSession() {
 
   const running = isRunning(mine);
   const sec = mine ? Math.floor(elapsedMs(mine) / 1000) : 0;
+
+  // 1 dakikayı geçen okuma o günü seriye yazar (oturum bitirilmese, uygulama kapansa da seri bozulmaz)
+  const markedDay = useRef<string | null>(null);
+  useEffect(() => {
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Istanbul' });
+    if (!running || sec < 60 || markedDay.current === today) return;
+    markedDay.current = today;
+    supabase.rpc('mark_reading_today').then(({ error }) => {
+      if (error) { markedDay.current = null; return; }
+      qc.invalidateQueries({ queryKey: ['streak'] });
+    });
+  }, [running, sec, qc]);
   const page = mine?.page ?? 0;
   const startPage = mine?.startPage ?? null;
   const sound = mine?.sound ?? null;

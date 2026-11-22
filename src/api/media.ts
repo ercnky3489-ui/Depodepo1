@@ -20,6 +20,7 @@ function refreshLibraryViews(qc: ReturnType<typeof useQueryClient>, uid: string 
   qc.invalidateQueries({ queryKey: ['me'] });
   qc.invalidateQueries({ queryKey: ['feed'] });
   qc.invalidateQueries({ queryKey: ['wrapped'] });
+  qc.invalidateQueries({ queryKey: ['streak'] });
 }
 
 export function useMedia(id: string) {
