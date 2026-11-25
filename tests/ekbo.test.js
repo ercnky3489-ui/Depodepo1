@@ -33,7 +33,7 @@ const APP=path.resolve(process.argv[2]||'../out55.html');let pass=0,fail=0;const
   r=await p.evaluate(async()=>{GM.cfg={on:true,since:0};await gmSaveCfg();const a=await brSend(true);const n1=window.__calls.length;const b=await brSend(false);const c=await brSend(false);return {a,b,c,n1,n2:window.__calls.length,call:window.__calls[0]}});
   ok(r.a.ok&&r.n1===1&&r.call.t==='send_message'&&r.call.i.to.length===2&&/sabah brifingi/.test(r.call.i.subject)&&/Hacze çıkılabilir/.test(r.call.i.htmlBody),'Sabah brifingi iki alıcıya tek e-posta olarak gitti',r.call&&r.call.i.subject);
   ok(r.n2===1&&r.b.skip&&r.c.skip,'Aynı gün ikinci kez gönderilmiyor',{b:r.b,c:r.c});
-  r=await p.evaluate(()=>{AG.view.m='mail';renderMts();return (document.getElementById('gmBox')||{}).innerText||''});ok(/Sabah brifingi/.test(r)&&/Şimdi gönder/.test(r)&&/Kapat/.test(r),'E-posta kuyruğu ekranında brifing aç/kapat ve “Şimdi gönder”',r.slice(0,200));
+  r=await p.evaluate(()=>{AG.view.m='mail';renderMts();return (document.getElementById('gmBox')||{}).innerText||''});ok(/Sabah brifingi/.test(r)&&/Şimdi gönder/.test(r)&&/kapalı/i.test(r.toLocaleLowerCase('tr-TR'))&&/Aç/.test(r),'Brifing varsayılan kapalı; açma düğmesi ve “Şimdi gönder” var',r.slice(0,200));
   /* --- 4 · Belge okuyucu --- */
   await p.evaluate(()=>{showScreen('dosyalar');select(0);S.tab='kisi';renderCard(true)});await p.waitForTimeout(300);
   await p.evaluate(()=>{const pn=[...document.querySelectorAll('.pt-pane')].find(x=>x.querySelector('[data-s="mersis"]'));if(pn){const t=document.querySelector('.pt-tab[data-ptab="'+pn.dataset.pt+'"]');if(t)t.click()}});await p.waitForTimeout(200);
