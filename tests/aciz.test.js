@@ -15,9 +15,13 @@ const APP=path.resolve(process.argv[2]||'../out54.html');let pass=0,fail=0;const
       [1,mk(1,[P('KURGU ANA','10000000146','Borçlu',NEG),P('KURGU İKİNCİ','20000000002','Kefil',NEG),P('KURGU ÜÇÜNCÜ','30000000003','Kefil',NEG)])], /* hepsi olumsuz */
       [2,mk(2,[P('KURGU ANA','10000000146','Borçlu',NEG),P('KURGU İKİNCİ','20000000002','Kefil',Object.assign({},NEG,{levha:{s:'var',n:''}})),P('KURGU ÜÇÜNCÜ','30000000003','Kefil',NEG)])]])};
     const U={by:new Map(),known:new Set(['10000000146','20000000002','30000000003']),loaded:true};
-    const ev=i=>agEvalFile(pf,row(i,others),U,new Set());const e0=ev(0),e1=ev(1),e2=ev(2);
-    return {v0:e0.v,n0:e0.ents.map(x=>x.ad+':'+x.vd.v),v1:e1.v,n1:e1.ents.length,v2:e2.v}});
-  ok(r.v0==='eksik'&&r.n0.length===3&&r.n0.every(x=>!/HANE/.test(x)),'Dosyadaki diğer borçlular kartta yoksa da değerlendirmeye giriyor; sorgulanmadıkları için dosya acize önerilmiyor (hane hariç)',r);
+    const ev=(i,k)=>agEvalFile(pf,row(i,k||others),U,new Set());const e0=ev(0),e1=ev(1,others.slice(0,2)),e2=ev(2);
+    pf.R.set(3,mk(3,[P('KURGU ANA','10000000146','Borçlu',NEG),P('KURGU HANE','40000000004','Hane',NEG)]));pf.R.set(4,mk(4,[P('KURGU ANA','10000000146','Borçlu',NEG),P('KURGU HANE','40000000004','Hane',Object.assign({},NEG,{sgkyet:{s:'var',n:''}}))]));
+    pf.R.set(5,mk(5,[P('KURGU ANA','10000000146','Borçlu',NEG),P('KURGU ANA','10000000146','Hane',NEG)]));
+    const e3=ev(3,[]),e4=ev(4,[]),e5=ev(5,[]);
+    return {v0:e0.v,n0:e0.ents.map(x=>x.ad+':'+x.vd.v),v1:e1.v,n1:e1.ents.length,v2:e2.v,v3:e3.v,n3:e3.ents.length,v4:e4.v,n5:e5.ents.length}});
+  ok(r.v0==='eksik'&&r.n0.length===4&&r.n0.some(x=>/HANE/.test(x)),'Dosyadaki diğer borçlular ve hane bireyi kartta yoksa da değerlendirmeye giriyor; sorgulanmadıkları için dosya acize önerilmiyor',r);
   ok(r.v1==='olumsuz'&&r.n1===3,'Dosyadaki 3 kişinin hepsi olumsuz → dosya acize çekilebilir',r);
+  ok(r.v3==='olumsuz'&&r.n3===2,'Borçlu ve hane bireyi olumsuz → föy acize çekilebilir',r);ok(r.v4==='olumlu','Hane bireyinde SGK yetkili bulgusu varsa föy listeye girmiyor',r);ok(r.n5===1,'Aynı TCKN hem borçlu hem hane ise bir kez sayılıyor',r);
   ok(r.v2==='olumlu','Bir kişide bile bulgu (E-levha) varsa dosya listeye girmiyor',r);
   ok(!errs.length,'Sayfa hatası yok',errs);console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);await b.close();srv.close();process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});
