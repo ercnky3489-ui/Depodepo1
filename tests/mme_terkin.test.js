@@ -55,4 +55,14 @@ Firmanın yetkilisi bulunmamaktadır.`;
   const txt=await p.evaluate(()=>document.querySelector('.modal').innerText);
   ok(/Terkin Tarihi\s*14\.01\.2013/.test(txt)&&/Firma Durumu\s*Terkin Edilmiş/.test(txt)&&/BEŞİKTAŞ VERGİ|ÖRNEK VERGİ DAİRESİ \/ 0420106099/.test(txt)&&/Firmanın yetkilisi bulunmamaktadır/.test(txt)&&!/yapıştırılmamış/.test(txt),'Detay ekranı MERSİS sayfası gibi: Terkin Tarihi, vergi dairesi, “yetkilisi bulunmamaktadır”',txt.slice(0,600));
   await p.screenshot({path:path.join(__dirname,'mme_terkin.png')});
+  /* üç şirket tek seferde yapıştırılınca üçü de eklenir (pencere üzerinden) */
+  await p.evaluate(()=>{document.querySelectorAll('.modal-bg').forEach(x=>x.remove());const R=cur();R.companies=[];renderCard(true)});await p.waitForTimeout(300);
+  await p.evaluate(()=>{const pn=[...document.querySelectorAll('.pt-pane')].find(x=>x.querySelector('[data-s="mersis"]'));if(pn){const t=document.querySelector('.pt-tab[data-ptab="'+pn.dataset.pt+'"]');if(t)t.click()}});await p.waitForTimeout(250);
+  await p.click('.ent [data-s="mersis"] [data-act="mme-paste"]');await p.waitForTimeout(200);
+  const third=GLUED.replace(/TASFİYE HALİNDE ÖRNEK GIDA[^\n]*LTD\.ŞTİ\./,'ÜÇÜNCÜ ÖRNEK ENERJİ A.Ş.').replace('0042010601300099','0333333333300033');
+  await p.fill('#mmeTx',GLUED+'\n'+TAB+'\n\n'+third);await p.click('.modal [data-m="ok"]');await p.waitForTimeout(500);
+  const m3=await p.evaluate(()=>cur().companies.map(c=>c.unvan+'|'+c.mersis));
+  ok(m3.length===3&&m3.some(x=>/^TASFİYE.*\|0042010601300099$/.test(x))&&m3.some(x=>/^İKİNCİ.*\|0111111111100077$/.test(x))&&m3.some(x=>/^ÜÇÜNCÜ ÖRNEK ENERJİ A\.Ş\.\|0333333333300033$/.test(x)),'Üç MERSİS sayfası tek seferde yapıştırılınca üç ayrı şirket eklendi',m3);
+  await p.evaluate(()=>{const pn=[...document.querySelectorAll('.pt-pane')].find(x=>x.querySelector('[data-s="mersis"]'));if(pn){const t=document.querySelector('.pt-tab[data-ptab="'+pn.dataset.pt+'"]');if(t)t.click()}});await p.waitForTimeout(250);
+  const rows=await p.evaluate(()=>document.querySelector('.ent [data-s="mersis"] .mme-res').querySelectorAll('[data-act="mme-detay"]').length);ok(rows===3,'MERSİS sonuç listesinde 3 şirket görünüyor',rows);
   ok(!errs.length,'Sayfa hatası yok',errs);console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);await b.close();srv.close();process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});
