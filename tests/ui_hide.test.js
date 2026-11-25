@@ -13,7 +13,7 @@ const APP=path.resolve(process.argv[2]||'../out55.html');let pass=0,fail=0;const
     document.querySelectorAll('.modal-bg').forEach(x=>x.remove());await openPortfolio('pA');showScreen('dosyalar');select(0);S.tab='toplu';renderCard(true)});await p.waitForTimeout(400);
   const st=(t)=>p.evaluate(t=>{const s=document.querySelector('section.blk[data-tab="'+t+'"]');const h=s.querySelector('.blk-h');const bt=h.querySelector('[data-blktg]');const hx=s.querySelector('.hxu');const body=s.querySelector(t==='toplu'?'#tsBox':'#tdBox');
     const hb=h.getBoundingClientRect(),bb=bt.getBoundingClientRect();return {btn:bt.textContent,right:bb.right>hb.right-60,hx:!!(hx&&hx.offsetParent),body:!!(body&&body.offsetParent&&body.innerText.replace('UYAP KUTUSU','').trim().length)}},t);
-  let r=await st('toplu');ok(/UYAP bilgilerini gizle/.test(r.btn)&&r.right&&r.hx&&r.body,'Toplu sonuçlar: düğme başlığın sağında, UYAP kutusu görünüyor',r);
+  let r=await st('toplu');ok(/UYAP bilgilerini gizle/.test(r.btn)&&/▲/.test(r.btn)&&r.right&&r.hx&&r.body,'Toplu sonuçlar: düğme başlığın sağında, UYAP kutusu görünüyor',r);
   await p.click('section.blk[data-tab="toplu"] [data-blktg]');r=await st('toplu');ok(!r.hx&&r.body&&/göster/.test(r.btn),'Basınca yalnız UYAP kutuları gizlendi; matris (sonuçlar) görünür kaldı',r);
   await p.evaluate(()=>renderCard(true));r=await st('toplu');ok(!r.hx&&r.body,'Tercih hatırlanıyor',r);
   await p.click('section.blk[data-tab="toplu"] [data-blktg]');r=await st('toplu');ok(r.hx&&r.body,'Tekrar basınca UYAP kutuları geri geldi',r);
