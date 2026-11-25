@@ -65,4 +65,12 @@ Firmanın yetkilisi bulunmamaktadır.`;
   ok(m3.length===3&&m3.some(x=>/^TASFİYE.*\|0042010601300099$/.test(x))&&m3.some(x=>/^İKİNCİ.*\|0111111111100077$/.test(x))&&m3.some(x=>/^ÜÇÜNCÜ ÖRNEK ENERJİ A\.Ş\.\|0333333333300033$/.test(x)),'Üç MERSİS sayfası tek seferde yapıştırılınca üç ayrı şirket eklendi',m3);
   await p.evaluate(()=>{const pn=[...document.querySelectorAll('.pt-pane')].find(x=>x.querySelector('[data-s="mersis"]'));if(pn){const t=document.querySelector('.pt-tab[data-ptab="'+pn.dataset.pt+'"]');if(t)t.click()}});await p.waitForTimeout(250);
   const rows=await p.evaluate(()=>document.querySelector('.ent [data-s="mersis"] .mme-res').querySelectorAll('[data-act="mme-detay"]').length);ok(rows===3,'MERSİS sonuç listesinde 3 şirket görünüyor',rows);
+  /* aynı şirketi föydeki başka bir kişiye (kefil) yapıştırmak: kopya yok, şirket iki kişinin altında da görünür */
+  const k=await p.evaluate((G)=>{const R=cur();const kf=newPerson({ad:'KURGU KEFİL',kimlik:'',rol:'Kefil'});kf.src=emptySrc();R.persons.push(kf);const n0=R.companies.length;
+    const c=mmeSaveText(R,kf,G);S.tab='mersis';renderCard(true);mmeRefresh();const box=document.getElementById('mmeBox');
+    const grp=[...box.querySelectorAll('.mme-pg')].map(g=>({h:g.querySelector('.mme-gh b').textContent,n:g.querySelectorAll('[data-act="mme-detay"]').length,t:g.textContent}));
+    return {n0,n1:R.companies.length,own:mmeOwners(R,c).map(x=>x.ad),kc:mmeCos(R,kf).length,grp}},GLUED);
+  ok(k.n1===k.n0&&k.own.includes('TEST BORÇLU')&&k.own.includes('KURGU KEFİL')&&k.kc===1,'Aynı MERSİS no’lu şirket kefile yapıştırılınca kopya oluşmadı, iki kişiye de bağlandı',k);
+  const gk=k.grp.find(g=>g.h==='KURGU KEFİL'),gb=k.grp.find(g=>g.h==='TEST BORÇLU');
+  ok(gk&&gk.n===1&&/TASFİYE/.test(gk.t)&&gb&&gb.n===3&&/ayrıca: KURGU KEFİL/.test(gb.t),'Föy MERSİS sekmesinde kayıtlar kişi kişi: kefilin şirketi kefilin altında da görünüyor',k.grp.map(g=>g.h+':'+g.n));
   ok(!errs.length,'Sayfa hatası yok',errs);console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);await b.close();srv.close();process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});
