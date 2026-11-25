@@ -25,7 +25,7 @@ const T1='10000000146',T2='20000000002',MS1='0111111111100011',MS2='022222222220
   const a=f0.c.find(c=>c.ms==='0111111111100011'),e=f0.c.find(c=>c.ms==='0222222222200022');
   ok(a&&a.s==='999'&&a.uy.join()==='Ortak/true','Mevcut şirketin bilgileri korunmuş, UYAP ortaklığı eklenmiş',a);
   ok(e&&e.u==='ESKİ KURGU LTD. ŞTİ.'&&e.kk==='KURGU BİR'&&/Geçmiş/.test(e.il)&&e.uy.join()==='Müdür/false','Pasif ortaklık “Geçmiş ortaklık (UYAP)” olarak kişiye bağlandı',e);
-  ok(f0.p[0].m&&f0.p[0].m.s==='var'&&/BİRİNCİ KURGU/.test(f0.p[0].m.n)&&/ESKİ KURGU/.test(f0.p[0].m.n)&&f0.cos[0]===2,'Kişinin İstihbarat › MERSİS’i “var”, iki şirket listede',f0.p[0]);
+  ok(f0.p[0].m&&f0.p[0].m.s==='var'&&/^MERSİS: BİRİNCİ KURGU/.test(f0.p[0].m.n)&&/UYAP: ortaklık hisse haczi tespit edildi — ESKİ KURGU LTD\. ŞTİ\. \(Müdür, pasif\)/.test(f0.p[0].m.n)&&f0.cos[0]===2,'Kişinin MERSİS’i “var”; not UYAP’tan geldiğini söylüyor (“ortaklık hisse haczi tespit edildi”)',f0.p[0]);
   ok(r.f1&&r.f1.p.some(x=>x.ad==='KURGU BİR'&&x.rol==='Kefil')&&r.f1.cos[r.f1.p.findIndex(x=>x.ad==='KURGU BİR')]===2,'Eski föy (kartı olmayan, kişi kefil): kart açıldı, şirketler kefilin MERSİS’ine eklendi',r.f1);
   ok(r.f2&&r.f2.c.length===0&&!(r.f2.p[0].m&&r.f2.p[0].m.s==='var'),'UYAP kaydı olmayan kişiye dokunulmadı',r.f2);
   const au=await p.evaluate(async()=>JSON.stringify((await agAuditLoad()).rows||[]).match(/UYAP hisse kayıtları MERSİS’e eklendi/g));ok(au&&au.length===2,'Ajan iki föyü güncelledi, denetim kaydına yazdı',{au:au&&au.length,note:r.note});
@@ -33,5 +33,8 @@ const T1='10000000146',T2='20000000002',MS1='0111111111100011',MS2='022222222220
   const r2=await p.evaluate(async()=>{const L=await pccLoadResearch('pA',3);return {n:L.find(x=>x.idx===0).companies.length,uy:L.find(x=>x.idx===0).companies.map(c=>(c.uyap||[]).length),note:AG.st.ag.uyapmersis.note}});
   ok(r2.n===2&&r2.uy.join()==='1,1'&&/güncellenecek kayıt yok/.test(r2.note),'İkinci taramada kopya oluşmadı',r2);
   await p.evaluate(async()=>{await openPortfolio('pA');showScreen('dosyalar');select(0);S.tab='mersis';renderCard(true);mmeRefresh()});await p.waitForTimeout(400);
-  const t=await p.evaluate(()=>document.getElementById('mmeBox').innerText);ok(/UYAP: Ortak · aktif/.test(t)&&/UYAP: Müdür · pasif/.test(t),'Föy MERSİS sekmesinde UYAP ortaklık etiketi görünüyor',t.slice(0,400));
+  const t=await p.evaluate(()=>document.getElementById('mmeBox').innerText);ok(/UYAP · ortaklık hisse haczi tespit edildi: Ortak · aktif/.test(t)&&/UYAP · ortaklık hisse haczi tespit edildi: Müdür · pasif/.test(t),'Föy MERSİS sekmesinde UYAP ortaklık etiketi görünüyor',t.slice(0,400));
+  /* Aşamalar: yalnız UYAP’tan gelen MERSİS kaydı Aşamalar’da yok, föyde var */
+  const as=await p.evaluate(()=>{const rows=asRows();return {me:rows.filter(r=>r.k==='me'&&r.d.i===1).length,uy:rows.filter(r=>/^\s*UYAP/i.test(String(r.f[0]||''))).length}});
+  ok(as.me===0&&as.uy===0,'Aşamalar’da UYAP’tan gelen MERSİS satırı görünmüyor',as);
   ok(!errs.length,'Sayfa hatası yok',errs);console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);await b.close();srv.close();process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});
