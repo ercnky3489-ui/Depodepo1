@@ -15,14 +15,14 @@ const APP=path.resolve(process.argv[2]||'../out54.html');let pass=0,fail=0;const
     document.querySelectorAll('.modal-bg').forEach(x=>x.remove());await agCycle('test');
     AG.mail.items['pA#0#hacze']={pid:'pA',i:0,ad:'KURGU BİR',du:'hacze',t:AG.now()-864e5,s:'mevcut'}});
   await p.evaluate(()=>{showScreen('mts');MTS.tab='ag';AG.view.m='mail';renderMts()});await p.waitForTimeout(400);
-  let t=await p.$eval('#gmBox',x=>x.innerText);ok(/Otomatik e-posta kapalı/.test(t)&&/ercankaya@hotmail\.com\.tr/.test(t),'Başlangıçta kapalı; alıcı gösteriliyor');
+  let t=await p.$eval('#gmBox',x=>x.innerText);const TOS=await p.evaluate(()=>AG_MAIL_TOS);ok(/Otomatik e-posta kapalı/.test(t)&&TOS.every(a=>t.includes(a)),'Başlangıçta kapalı; alıcı gösteriliyor');
   ok(await p.evaluate(()=>window.__calls.length)===0,'Kullanıcı etkinleştirmeden hiçbir e-posta gönderilmedi');
   await p.click('[data-gm="on"]');await p.waitForFunction(()=>GM.cfg&&GM.cfg.on&&!GM.busy);
-  let c=await p.evaluate(()=>window.__calls);ok(c.length===1&&c[0].s==='Gmail'&&c[0].t==='send_message'&&c[0].i.to[0]==='ercankaya@hotmail.com.tr'&&/etkinleştirildi/.test(c[0].i.subject)&&c[0].o.cache===false,'Etkinleştir: sabit alıcıya deneme e-postası (önbelleksiz)',c[0]);
+  let c=await p.evaluate(()=>window.__calls);ok(c.length===1&&c[0].s==='Gmail'&&c[0].t==='send_message'&&c[0].i.to.join()===TOS.join()&&TOS.length>=2&&/etkinleştirildi/.test(c[0].i.subject)&&c[0].o.cache===false,'Etkinleştir: iki alıcıya tek deneme e-postası (önbelleksiz)',c[0]);
   /* yeni dosyalar kuyruğa girer → tek özet e-postası */
   await p.evaluate(async()=>{const now=AG.now()+1000;AG.mail.items['pA#1#hacze']={pid:'pA',i:1,ad:'KURGU İKİ',du:'hacze',t:now,s:'kuyruk'};AG.mail.items['pA#2#tamam']={pid:'pA',i:2,ad:'KURGU ÜÇ',du:'tamam',t:now,s:'kuyruk'};await gmAuto()});
   c=await p.evaluate(()=>({calls:window.__calls,st:Object.fromEntries(Object.entries(AG.mail.items).map(([k,v])=>[k,v.s]))}));
-  ok(c.calls.length===2&&/KURGU İKİ/.test(c.calls[1].i.htmlBody)&&/KURGU ÜÇ/.test(c.calls[1].i.htmlBody)&&/2 dosya/.test(c.calls[1].i.subject),'Kuyruğa giren 2 dosya tek özet e-postasıyla gönderildi',c.calls[1]&&c.calls[1].i.subject);
+  ok(c.calls.length===2&&c.calls[1].i.to.length===2&&/KURGU İKİ/.test(c.calls[1].i.htmlBody)&&/KURGU ÜÇ/.test(c.calls[1].i.htmlBody)&&/2 dosya/.test(c.calls[1].i.subject),'Kuyruğa giren 2 dosya tek özet e-postasıyla gönderildi',c.calls[1]&&c.calls[1].i.subject);
   ok(c.st['pA#1#hacze']==='gonderildi'&&c.st['pA#2#tamam']==='gonderildi'&&c.st['pA#0#hacze']==='mevcut','Gönderilenler işaretlendi; ajan öncesi “mevcut” dosya gönderilmedi',c.st);
   await p.evaluate(()=>gmAuto());ok(await p.evaluate(()=>window.__calls.length)===2,'Aynı dosya ikinci kez gönderilmiyor');
   /* belirsiz sonuç: otomatik tekrar yok */
