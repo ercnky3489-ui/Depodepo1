@@ -27,7 +27,7 @@ const APP=path.resolve(process.argv[2]||'../out53.html');let pass=0,fail=0;const
   await p.click('[data-yd="key"]');await p.waitForTimeout(200);
   ok(await p.$eval('#ydOn',x=>x.disabled),'Özel anahtar indirilmeden etkinleştirilemiyor');
   const [dl]=await Promise.all([p.waitForEvent('download',{timeout:30000}),p.click('.modal [data-m="dl"]')]);const pemPath=path.join(__dirname,'yd_test_key.pem');await dl.saveAs(pemPath);
-  const pem=fs.readFileSync(pemPath,'utf8');ok(/BEGIN PRIVATE KEY/.test(pem)&&/^icra-yedek-anahtari-[0-9a-f]{16}\.pem$/.test(dl.suggestedFilename()),'Özel anahtar .pem olarak indirildi',dl.suggestedFilename());
+  const pem=fs.readFileSync(pemPath,'utf8');ok(/BEGIN PRIVATE KEY/.test(pem)&&/^icra-yedek-anahtari-[0-9a-f]{16}\.txt$/.test(dl.suggestedFilename()),'Özel anahtar .txt olarak indirildi (platform .pem’e izin vermiyor)',dl.suggestedFilename());
   await p.check('#ydSaved');await p.click('#ydOn');
   await p.waitForFunction(()=>YD.idx&&YD.idx.items.length===1&&!YD.busy,null,{timeout:30000});
   let r=await p.evaluate(async()=>{const k=await AGS.get('backup_key');const all=JSON.stringify([...window.__fakeDb.store.entries()]);return {k,priv:/PRIVATE KEY|"d":"/.test(all)||/pkcs8/.test(all),it:YD.idx.items[0],as:[...window.__as.values()].map(a=>a.t)}});
