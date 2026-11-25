@@ -41,6 +41,17 @@ const T1='10000000146',T2='20000000002',MS1='0111111111100011',MS2='022222222220
   ok(as.f1.length===2&&as.f1.every(x=>/Hisse haczi/.test(x)),'Kefil olan kişinin UYAP şirketleri de satır satır',as.f1);
   ok(as.hxas===0,'Aşamalar’da UYAP kaynak madalyonları (Şirket hacizleri, MERSİS/İSKİ/MERNİS adres, GİB) yok',as.hxas);
   ok(as.tbl&&as.seg&&as.lvb>=2,'MERSİS tablosunda hisse haczi rozeti + UYAP görevi + Levha yapıştır; “Şirket levhaları” panosunda şirket kartları',as);
+  /* Şirket levhaları panosu: “🏛 MERSİS güncelle” → yapıştırınca şirketin VKN / vergi dairesi / durumu güncellenir */
+  await p.evaluate(()=>{showScreen('asama');S.asK='me';S.asView='levha';S.asDur='all';renderAsama()});await p.waitForTimeout(300);
+  const upb=await p.$('#asamaScreen [data-meup]');ok(!!upb,'Şirket kartında “🏛 MERSİS güncelle” düğmesi');
+  if(upb){const eid=await upb.getAttribute('data-eid');const di=+(await upb.getAttribute('data-meup'));await upb.click();await p.waitForTimeout(250);
+    const ttl=await p.evaluate(()=>[...document.querySelectorAll('.modal h3')].pop().textContent);
+    const un=await p.evaluate(({di,eid})=>meFind(di,eid).e.unvan,{di,eid});const ms=await p.evaluate(({di,eid})=>meFind(di,eid).e.mersis,{di,eid});
+    await p.fill('#mePx',`Firma Bilgileri\nUnvan\n${un}Kuruluş Tarihi 01-02-2005Firma Durumu Aktif\nMERSİS No\n${ms}VergiDairesi/No\nÖRNEK VERGİ DAİRESİ / ${ms.slice(1,11)}Ticaret Sicil No / Dosya No\n4242\nFirma Türü\nLİMİTED ŞİRKET`);
+    await p.click('.modal [data-m="ok"]');await p.waitForTimeout(500);
+    const up=await p.evaluate(({di,eid})=>{const e=meFind(di,eid).e;const card=[...document.querySelectorAll('#asamaScreen .lv-c')].find(c=>c.querySelector('[data-eid="'+eid+'"]'));return {vkn:e.vkn,vd:e.vd,du:e.durum,sc:e.sicil,card:card?card.innerText:''}},{di,eid});
+    ok(/MERSİS güncelle/.test(ttl)&&up.vkn===ms.slice(1,11)&&up.vd==='ÖRNEK VERGİ DAİRESİ'&&up.du&&up.sc==='4242','MERSİS yapıştırılınca şirketin VKN, vergi dairesi, durum ve sicili güncellendi',{ttl,up});
+    ok(up.card.includes(ms.slice(1,11))&&!/VKN yok/.test(up.card),'Panodaki kartta artık VKN görünüyor',up.card.slice(0,300))}
   /* Toplu sonuçlar ve Toplu detay: birden çok şirket satır satır */
   const tv=await p.evaluate(()=>{S.tab='toplu';S.tsSrc='mersis';renderCard(true);const tb=document.querySelector('#tsBox table.ts-dt');const rows=tb?[...tb.querySelectorAll('tbody tr')].map(r=>r.innerText.replace(/\s+/g,' ')):[];
     S.tab='tdetay';renderCard(true);try{tdRefresh()}catch(e){}const col=document.querySelector('#tdBox .td-col.c-mersis');const it=col&&[...col.querySelectorAll('.td-it')].find(x=>/KURGU BİR/.test(x.innerText));
