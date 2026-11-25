@@ -19,16 +19,11 @@ const APP=path.resolve(process.argv[2]||'../out55.html');let pass=0,fail=0;const
   /* --- 8 · Ekip --- */
   let r=await p.evaluate(()=>({bar:(document.getElementById('ekBar')||{}).innerText||'',pres:window.__pres,tag:[...document.querySelectorAll('#list [data-i="0"] .ek-tag')].map(x=>x.textContent)}));
   ok(r.pres&&r.pres.ad==='Kurgu Ercan'&&r.pres.pid==='pA'&&r.pres.i===0,'Açık föy ve araştırıcı adı canlı yayınlanıyor',r.pres);
-  ok(/kimse üstlenmedi/.test(r.bar)&&/Şu an bakıyor: .*Kurgu Yakup/.test(r.bar),'Föy üstünde: “Üstüme al” ve “Şu an bakıyor: Kurgu Yakup”',r.bar);
-  await p.click('#ekBar [data-ek="take"]');await p.waitForTimeout(300);
-  r=await p.evaluate(()=>({bar:document.getElementById('ekBar').innerText,c:ekClaimOf('pA',0),tag:[...document.querySelectorAll('#list [data-i="0"] .ek-tag')].map(x=>x.textContent),log:(getR(0).log||[]).map(l=>l.m).filter(m=>/üstlen/.test(m))}));
-  ok(r.c&&r.c.ad==='Kurgu Ercan'&&/Bu dosya sizde/.test(r.bar)&&r.tag.includes('✋ siz')&&r.log.length===1,'“Üstüme al”: kayıt, föy çubuğu, listede ✋ etiketi, işlem kaydı',r);
-  await p.evaluate(()=>ekSetClaim('pA',1,{ad:'Kurgu Yakup',pid:'pA',i:1,dosya:'KURGU İKİ',t:Date.now()-3600e3}));await p.evaluate(()=>{select(1);renderCard(true)});await p.waitForTimeout(300);
-  r=await p.evaluate(()=>document.getElementById('ekBar').innerText);ok(/Kurgu Yakup.*üstlendi/.test(r)&&/Devral/.test(r),'Başkasının üstlendiği dosyada uyarı ve “Devral”',r);
-  await p.click('#ekBar [data-ek="force"]');await p.click('#ekBar [data-ek="force2"]');await p.waitForTimeout(300);
-  r=await p.evaluate(()=>ekClaimOf('pA',1).ad);ok(r==='Kurgu Ercan','Onaylı devralma çalışıyor',r);
+  ok(r.bar===''&&!(await p.$('#ekBar')),'Föyde “Üstüme al” şeridi yok (kaldırıldı)',r.bar);
+  r=await p.evaluate(()=>{select(1);renderCard(true);ekPaint();return [...document.querySelectorAll('#list [data-i="0"] .ek-tag')].map(x=>x.textContent)});
+  ok(r.length===1&&/👀/.test(r[0]),'Listede başkasının baktığı dosyada 👀 işareti kalıyor',r);
   r=await p.evaluate(async()=>{await agCycle('test');showScreen('mts');MTS.tab='ag';AG.view.m='ekip';renderMts();await new Promise(r=>setTimeout(r,200));return (document.getElementById('ekBox')||{}).textContent||''});
-  ok(/Şu an kim nerede/.test(r)&&/Kurgu Yakup/.test(r)&&/Üstlenilen dosyalar\s*2/.test(r)&&/Bugün kim ne yaptı/.test(r)&&/Kurgu Ercan/.test(r),'Ajan Merkezi › 👥 Ekip: çevrimiçiler, üstlenilenler, bugünkü işlemler',r.slice(0,400));
+  ok(/Şu an kim nerede/.test(r)&&/Kurgu Yakup/.test(r)&&!/Üstlenilen/.test(r)&&/Bugün kim ne yaptı/.test(r),'Ajan Merkezi › 👥 Ekip: çevrimiçiler ve bugünkü işlemler; üstlenme bölümü yok',r.slice(0,300));
   /* --- 9 · Sabah brifingi --- */
   r=await p.evaluate(async()=>{GM.cfg={on:true,since:0};await gmSaveCfg();const a=await brSend(true);const n1=window.__calls.length;const b=await brSend(false);const c=await brSend(false);return {a,b,c,n1,n2:window.__calls.length,call:window.__calls[0]}});
   ok(r.a.ok&&r.n1===1&&r.call.t==='send_message'&&r.call.i.to.length===2&&/sabah brifingi/.test(r.call.i.subject)&&/Hacze çıkılabilir/.test(r.call.i.htmlBody),'Sabah brifingi iki alıcıya tek e-posta olarak gitti',r.call&&r.call.i.subject);
