@@ -34,9 +34,13 @@ const T1='10000000146',T2='20000000002',MS1='0111111111100011',MS2='022222222220
   ok(r2.n===2&&r2.uy.join()==='1,1'&&/güncellenecek kayıt yok/.test(r2.note),'İkinci taramada kopya oluşmadı',r2);
   await p.evaluate(async()=>{await openPortfolio('pA');showScreen('dosyalar');select(0);S.tab='mersis';renderCard(true);mmeRefresh()});await p.waitForTimeout(400);
   const t=await p.evaluate(()=>document.getElementById('mmeBox').innerText);ok(/UYAP · ortaklık hisse haczi tespit edildi: Ortak · aktif/.test(t)&&/UYAP · ortaklık hisse haczi tespit edildi: Müdür · pasif/.test(t),'Föy MERSİS sekmesinde UYAP ortaklık etiketi görünüyor',t.slice(0,400));
-  /* Aşamalar: yalnız UYAP’tan gelen MERSİS kaydı Aşamalar’da yok, föyde var */
-  const as=await p.evaluate(()=>{const rows=asRows();return {me:rows.filter(r=>r.k==='me'&&r.d.i===1).length,uy:rows.filter(r=>/^\s*UYAP/i.test(String(r.f[0]||''))).length}});
-  ok(as.me===0&&as.uy===0,'Aşamalar’da UYAP’tan gelen MERSİS satırı görünmüyor',as);
+  /* Aşamalar › MERSİS: her şirket ayrı satır, UYAP hisse haczi işaretli; UYAP kaynak madalyonları yok */
+  const as=await p.evaluate(()=>{const rows=asRows().filter(r=>r.k==='me');const f0=rows.filter(r=>r.d.i===0).map(r=>r.f[0]+'|'+r.f[1]);const f1=rows.filter(r=>r.d.i===1).map(r=>r.f[0]+'|'+r.f[1]);
+    S.asK='me';S.asView='tablo';S.asDur='all';const h=asHTML();S.asView='levha';const hl=asHTML();return {f0,f1,hxas:HXAS.length,tbl:/Hisse haczi \(UYAP\)/.test(h)&&/UYAP: Müdür · pasif/.test(h)&&/data-mlv=/.test(h),seg:/Şirket levhaları/.test(h),lvb:(hl.match(/class="me-c lv-c/g)||[]).length}});
+  ok(as.f0.length===2&&as.f0.some(x=>/^BİRİNCİ KURGU A\.Ş\.\|🏢 Şirket/.test(x))&&as.f0.some(x=>/^ESKİ KURGU LTD\. ŞTİ\.\|⚖ Hisse haczi \(UYAP\)/.test(x)),'Aşamalar › MERSİS: her şirket ayrı satır; UYAP’tan gelen “⚖ Hisse haczi (UYAP)” diye ayrılıyor',as);
+  ok(as.f1.length===2&&as.f1.every(x=>/Hisse haczi/.test(x)),'Kefil olan kişinin UYAP şirketleri de satır satır',as.f1);
+  ok(as.hxas===0,'Aşamalar’da UYAP kaynak madalyonları (Şirket hacizleri, MERSİS/İSKİ/MERNİS adres, GİB) yok',as.hxas);
+  ok(as.tbl&&as.seg&&as.lvb>=2,'MERSİS tablosunda hisse haczi rozeti + UYAP görevi + Levha yapıştır; “Şirket levhaları” panosunda şirket kartları',as);
   /* Toplu sonuçlar ve Toplu detay: birden çok şirket satır satır */
   const tv=await p.evaluate(()=>{S.tab='toplu';S.tsSrc='mersis';renderCard(true);const tb=document.querySelector('#tsBox table.ts-dt');const rows=tb?[...tb.querySelectorAll('tbody tr')].map(r=>r.innerText.replace(/\s+/g,' ')):[];
     S.tab='tdetay';renderCard(true);try{tdRefresh()}catch(e){}const col=document.querySelector('#tdBox .td-col.c-mersis');const it=col&&[...col.querySelectorAll('.td-it')].find(x=>/KURGU BİR/.test(x.innerText));
