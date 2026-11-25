@@ -47,6 +47,9 @@ Firmanın sınırlı yetkilisi bulunmamaktadır.`;
     ok(st.scr==='dosyalar'&&st.sel===0&&st.tab==='true'&&st.vis,'İsme tıklayınca kişinin kartı İstihbarat sekmesi açık olarak geldi',st)}
   /* Levha panosu: isme tıklayınca da İstihbarat açılır */
   await p.evaluate(()=>{showScreen('asama');const R=S.research.get(0);const e=R.persons[0];document.getElementById('asamaScreen').innerHTML=lvBoardHTML([{e,d:{i:0,ad:'KURGU YETKİLİ'},rol:'Borçlu',kisi:e.ad}])});await p.waitForTimeout(300);
+  const lvt=await p.evaluate(()=>{const c=document.querySelector('#asamaScreen .lv-c');return c?{co:c.querySelector('.me-co').innerText,es:c.querySelector('.me-es').innerText}:null});
+  ok(lvt&&/Şirket/i.test(lvt.co)&&/ÖRNEK TURŞU KONSERVE/.test(lvt.co)&&/İKİNCİ KURGU/.test(lvt.co)&&/4530618117/.test(lvt.co)&&/KURGU YETKİLİ/.test(lvt.es),'Levha kartında MERSİS panosu gibi solda şirket(ler) VKN ile, yanında kişi',lvt);
+  await p.screenshot({path:path.join(__dirname,'lv_board.png')});
   const lv=await p.$$('#asamaScreen .lv-p [data-meist]');ok(lv.length===1,'Levha panosunda isim tıklanabilir',lv.length);
   if(lv.length){await lv[0].click();await p.waitForTimeout(700);const st2=await p.evaluate(()=>{const card=document.querySelector('.pt-card[data-p="'+cur().persons[0].id+'"]');const pane=card&&card.querySelector('.pt-pane[data-pt="ist"]');return {scr:S.screen,vis:pane&&!pane.hidden}});
     ok(st2.scr==='dosyalar'&&st2.vis,'Levha panosundan isme tıklayınca İstihbarat açık geldi',st2)}
