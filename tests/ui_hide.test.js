@@ -21,4 +21,6 @@ const APP=path.resolve(process.argv[2]||'../out55.html');let pass=0,fail=0;const
   await p.click('section.blk[data-tab="tdetay"] [data-blktg]');r=await st('tdetay');ok(!r.hx&&r.body,'Toplu detay: UYAP gizlendi, kaynak ızgarası görünür',r);
   r=await p.evaluate(()=>{const t=document.getElementById('todoBox');return !t||getComputedStyle(t).display==='none'});ok(r,'Yapılacaklar şeridi görünmüyor');
   r=await p.evaluate(()=>{showScreen('asama');renderAsama();return !!document.querySelector('#asamaScreen [data-act-as="hz"]')});ok(!r,'Aşamalar’da “Haciz bilgisi yapıştır” düğmesi yok');
+  r=await p.evaluate(()=>({sub:HX_SUB.takip.map(x=>x[0]).join(),btn:(document.querySelector('#bottomNav .bn.hxn[data-hx]')||{dataset:{}}).dataset.hx,v:HX.view,teb:JSON.stringify(HX_SUB).includes('Tebligat ve Kesinleşme')}));
+  ok(r.sub==='genel,takip'&&r.btn==='genel'&&r.v==='genel'&&!r.teb,'Genel Bakış ilk sayfa Özet; “Tebligat ve Kesinleşme” sekmesi yok',r);
   ok(!errs.length,'Sayfa hatası yok',errs);console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);await b.close();srv.close();process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});
