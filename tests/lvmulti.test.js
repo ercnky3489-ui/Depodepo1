@@ -48,4 +48,6 @@ ${mat}
   const ts=await p.evaluate(()=>{S.tab='toplu';renderCard(true);return document.getElementById('tsBox').innerText});ok(/BİRİNCİ KURGU/.test(ts)&&/İKİNCİ KURGU/.test(ts)&&/ÜÇÜNCÜ KURGU/.test(ts),'Toplu sonuçlarda üç şirket görünüyor');
   const td=await p.evaluate(()=>{S.tab='tdetay';renderCard(true);try{tdRefresh()}catch(e){}return document.getElementById('tdBox').innerText});
   ok((td.match(/1 levha/gi)||[]).length>=3&&/KADIKÖY/.test(td)&&/ÜSKÜDAR/.test(td)&&/BEŞİKTAŞ/.test(td),'Toplu detayda üç şirketin levhası (vergi dairesi, matrah) görünüyor',td.slice(0,500));
+  const lvr=await p.evaluate(()=>{showScreen('asama');return asRows().filter(r=>r.k==='lv').map(r=>r.kisi+'|'+r.rol+'|'+r.f[0])});
+  ok(lvr.length===3&&lvr.every(x=>/\|Şirket\|/.test(x))&&lvr.some(x=>/^BİRİNCİ KURGU A\.Ş\.\|Şirket\|KADIKÖY/.test(x)),'Şirket levhaları Aşamalar › E-Vergi levhası listesinde görünüyor',lvr);
   ok(!errs.length,'Sayfa hatası yok',errs);console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);await b.close();srv.close();process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});
