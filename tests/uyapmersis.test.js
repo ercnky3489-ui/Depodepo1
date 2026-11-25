@@ -37,4 +37,11 @@ const T1='10000000146',T2='20000000002',MS1='0111111111100011',MS2='022222222220
   /* Aşamalar: yalnız UYAP’tan gelen MERSİS kaydı Aşamalar’da yok, föyde var */
   const as=await p.evaluate(()=>{const rows=asRows();return {me:rows.filter(r=>r.k==='me'&&r.d.i===1).length,uy:rows.filter(r=>/^\s*UYAP/i.test(String(r.f[0]||''))).length}});
   ok(as.me===0&&as.uy===0,'Aşamalar’da UYAP’tan gelen MERSİS satırı görünmüyor',as);
+  /* Toplu sonuçlar ve Toplu detay: birden çok şirket satır satır */
+  const tv=await p.evaluate(()=>{S.tab='toplu';S.tsSrc='mersis';renderCard(true);const tb=document.querySelector('#tsBox table.ts-dt');const rows=tb?[...tb.querySelectorAll('tbody tr')].map(r=>r.innerText.replace(/\s+/g,' ')):[];
+    S.tab='tdetay';renderCard(true);try{tdRefresh()}catch(e){}const col=document.querySelector('#tdBox .td-col.c-mersis');const it=col&&[...col.querySelectorAll('.td-it')].find(x=>/KURGU BİR/.test(x.innerText));
+    return {rows,cos:it?[...it.querySelectorAll('.td-co')].map(x=>x.innerText.replace(/\s+/g,' ')):[]}});
+  ok(tv.rows.length===2&&/BİRİNCİ KURGU/.test(tv.rows[0])&&/ESKİ KURGU/.test(tv.rows[1])&&/UYAP hisse haczi · Müdür · pasif/.test(tv.rows[1]),'Toplu sonuçlar › MERSİS: her şirket ayrı satır (UYAP kaynağı yazıyor)',tv.rows);
+  ok(tv.cos.length===2&&/^1\. BİRİNCİ KURGU/.test(tv.cos[0])&&/^2\. ESKİ KURGU/.test(tv.cos[1])&&/UYAP hisse haczi: Müdür · pasif/.test(tv.cos[1]),'Toplu detay › MERSİS: şirketler numaralı, ayrı ayrı',tv.cos);
+  await p.screenshot({path:path.join(__dirname,'td_mersis.png')});
   ok(!errs.length,'Sayfa hatası yok',errs);console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);await b.close();srv.close();process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});
