@@ -38,4 +38,11 @@ Firmanın sınırlı yetkilisi bulunmamaktadır.`;
   ok(r.cs.length===2&&r.cs.every(c=>c.kk),'İki ayrı şirket kişiye bağlandı',r.cs);
   ok(r.cs[0].u==='ÖRNEK TURŞU KONSERVE GIDA SANAYİ VE TİCARET LİMİTED ŞİRKETİ'&&r.cs[0].k==='08.03.2006'&&r.cs[0].vd==='ÖRNEK VERGİ DAİRESİ'&&r.cs[0].il==='SGK yetkili işyeri'&&r.cs[1].ms==='0222222222200022','Alanlar doğru (kuruluş, vergi dairesi); ilki SGK yetkili işyeri',r.cs);
   ok(r.src&&r.src.s==='var'&&r.row.vkn==='4530618117','Kişinin MERSİS kaynağı “var”, SGK satırına VKN yazıldı',{src:r.src,row:r.row});
+  /* Aşamalar MERSİS listesinde isme tıklayınca kişinin kartı İstihbarat sekmesiyle açılır */
+  await p.evaluate(()=>{showScreen('asama');const R=S.research.get(0);const e=R.persons[0];const el=document.getElementById('asamaScreen');
+    el.innerHTML=meBoardHTML([{e,d:{i:0,ad:'KURGU YETKİLİ'},rol:'Borçlu',f:['ÖRNEK TURŞU SN.VE TC.LTD.ŞTİ.','','','','']}],'yt')});await p.waitForTimeout(300);
+  const lk=await p.$$('#asamaScreen [data-meist]');ok(lk.length>=1,'Aşamalar MERSİS listesinde isimler tıklanabilir',lk.length);
+  if(lk.length){await lk[lk.length-1].click();await p.waitForTimeout(700);
+    const st=await p.evaluate(()=>{const card=document.querySelector('.pt-card[data-p="'+cur().persons[0].id+'"]');const t=card&&card.querySelector('.pt-tab[data-ptab="ist"]');const pane=card&&card.querySelector('.pt-pane[data-pt="ist"]');return {scr:S.screen,sel:S.sel,tab:t&&t.getAttribute('aria-selected'),vis:pane&&!pane.hidden}});
+    ok(st.scr==='dosyalar'&&st.sel===0&&st.tab==='true'&&st.vis,'İsme tıklayınca kişinin kartı İstihbarat sekmesi açık olarak geldi',st)}
   ok(!errs.length,'Sayfa hatası yok',errs);console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);await b.close();srv.close();process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});
