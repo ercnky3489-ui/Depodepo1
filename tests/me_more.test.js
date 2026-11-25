@@ -45,4 +45,9 @@ Firmanın sınırlı yetkilisi bulunmamaktadır.`;
   if(lk.length){await lk[lk.length-1].click();await p.waitForTimeout(700);
     const st=await p.evaluate(()=>{const card=document.querySelector('.pt-card[data-p="'+cur().persons[0].id+'"]');const t=card&&card.querySelector('.pt-tab[data-ptab="ist"]');const pane=card&&card.querySelector('.pt-pane[data-pt="ist"]');return {scr:S.screen,sel:S.sel,tab:t&&t.getAttribute('aria-selected'),vis:pane&&!pane.hidden}});
     ok(st.scr==='dosyalar'&&st.sel===0&&st.tab==='true'&&st.vis,'İsme tıklayınca kişinin kartı İstihbarat sekmesi açık olarak geldi',st)}
+  /* Levha panosu: isme tıklayınca da İstihbarat açılır */
+  await p.evaluate(()=>{showScreen('asama');const R=S.research.get(0);const e=R.persons[0];document.getElementById('asamaScreen').innerHTML=lvBoardHTML([{e,d:{i:0,ad:'KURGU YETKİLİ'},rol:'Borçlu',kisi:e.ad}])});await p.waitForTimeout(300);
+  const lv=await p.$$('#asamaScreen .lv-p [data-meist]');ok(lv.length===1,'Levha panosunda isim tıklanabilir',lv.length);
+  if(lv.length){await lv[0].click();await p.waitForTimeout(700);const st2=await p.evaluate(()=>{const card=document.querySelector('.pt-card[data-p="'+cur().persons[0].id+'"]');const pane=card&&card.querySelector('.pt-pane[data-pt="ist"]');return {scr:S.screen,vis:pane&&!pane.hidden}});
+    ok(st2.scr==='dosyalar'&&st2.vis,'Levha panosundan isme tıklayınca İstihbarat açık geldi',st2)}
   ok(!errs.length,'Sayfa hatası yok',errs);console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);await b.close();srv.close();process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});
