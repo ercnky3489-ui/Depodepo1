@@ -1,0 +1,61 @@
+{
+ "aciz": {
+  "btn": [
+   "Acize çek…",
+   "Föyü aç"
+  ],
+  "hd": [
+   "Acize çekilebilir föyler #",
+   "Karar için eksik sorgu #"
+  ]
+ },
+ "gorev": {
+  "btn": [
+   "Aciz (eksik sorgu) #",
+   "Föyü aç",
+   "Tümü #",
+   "Yedek #",
+   "Yedek al",
+   "×",
+   "Şahıs #",
+   "Şirket #"
+  ],
+  "hd": []
+ },
+ "onay": {
+  "btn": [
+   "Föyü aç",
+   "Onayla ve aktar",
+   "Reddet"
+  ],
+  "hd": [
+   "Bulgu yayılımı #",
+   "İsim benzerliği · kimlik doğrulaması #"
+  ]
+ },
+ "ekip": {
+  "btn": [],
+  "hd": [
+   "Şu an kim nerede #",
+   "Bugün kim ne yaptı #"
+  ]
+ },
+ "haftalik": {
+  "btn": [
+   "✉ E-postayla gönder",
+   "⬇ Excel’e aktar"
+  ],
+  "hd": [
+   "Son # hafta · bakılan dosya",
+   "Bu hafta kişi kişi #",
+   "Aşama dağılımı (bütün portföyler)"
+  ]
+ },
+ "yedek": {
+  "btn": [
+   "Açık portföyün yerel yedeğini al",
+   "🔑 Yedek anahtarı oluştur ve bulut yedeğini aç"
+  ],
+  "hd": []
+ }
+}
