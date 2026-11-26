@@ -1,6 +1,7 @@
 // Ana akış kartları. Her aktivite türünün kendi görsel hiyerarşisi var:
 // büyük (alıntı, izlenen film, bitirilen kitap) · orta (inceleme, dizi, liste) · küçük (takip, beğeni, başlama).
 import { router } from 'expo-router';
+import { openCoverMenu } from '../features/library/CoverMenu';
 import { memo, useState } from 'react';
 import { ShareQuoteSheet, STORY_SHARE_SUPPORTED } from '../features/share/ShareQuoteSheet';
 import { Pressable, Share, StyleSheet, View } from 'react-native';
@@ -95,7 +96,7 @@ function QuoteCard({ item }: { item: FeedItem }) {
       <Meta item={item} right={isBook ? <Tag text="ALINTI" /> : <IconFilm />} />
       {isBook ? <T v="displayXl" c={color.primary} style={styles.quoteMark} accessibilityElementsHidden importantForAccessibility="no">“</T> : null}
       {body}
-      <Pressable onPress={() => item.media && router.push(`/media/${item.media.id}`)} style={styles.source} accessibilityRole="link">
+      <Pressable onPress={() => item.media && router.push(`/media/${item.media.id}`)} onLongPress={() => item.media && openCoverMenu(item.media)} delayLongPress={450} style={styles.source} accessibilityRole="link">
         {item.media ? <Cover id={item.media.id} path={item.media.cover_path} width={30} /> : null}
         <View style={{ flex: 1 }}>
           <T v="label">{item.media?.title}</T>
@@ -158,7 +159,7 @@ function WatchedCard({ item }: { item: FeedItem }) {
       <View style={{ padding: space[4] }}>
         <Meta item={item} right={item.object?.rating ? <RatingPill value={item.object.rating} /> : null} />
       </View>
-      <Pressable onPress={() => router.push(`/media/${m.id}`)} accessibilityRole="link" accessibilityLabel={`${m.title} detayına git`}
+      <Pressable onPress={() => router.push(`/media/${m.id}`)} onLongPress={() => openCoverMenu(m)} delayLongPress={450} accessibilityRole="link" accessibilityLabel={`${m.title} detayına git`}
         style={{ height: 210, backgroundColor: '#071A1C' }}>
         {backdrop ? <Image source={{ uri: backdrop }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} /> : null}
         <LinearGradient colors={['rgba(7,26,28,0)', 'rgba(8,11,10,0.95)']} style={[StyleSheet.absoluteFill, { top: 90 }]} />
@@ -180,7 +181,7 @@ function FinishedBookCard({ item }: { item: FeedItem }) {
   return (
     <Card highlight>
       <Meta item={item} right={<Tag text="BİTİRDİ" solid />} />
-      <Pressable onPress={() => router.push(`/media/${m.id}`)} style={{ flexDirection: 'row', gap: space[4], marginTop: space[4], alignItems: 'flex-end' }} accessibilityRole="link">
+      <Pressable onPress={() => router.push(`/media/${m.id}`)} onLongPress={() => openCoverMenu(m)} delayLongPress={450} style={{ flexDirection: 'row', gap: space[4], marginTop: space[4], alignItems: 'flex-end' }} accessibilityRole="link">
         <Cover id={m.id} path={m.cover_path} title={m.title} width={118} radius={8} shadow />
         <View style={{ flex: 1 }}>
           <T v="titleLg" style={{ fontSize: 22, lineHeight: 26 }}>{m.title}</T>
@@ -204,7 +205,7 @@ function ProgressCard({ item }: { item: FeedItem }) {
   return (
     <Card style={{ paddingVertical: 14 }}>
       <Meta item={item} size={24} />
-      <Pressable onPress={() => router.push(`/media/${m.id}`)} style={{ flexDirection: 'row', gap: space[3], marginTop: space[3], alignItems: 'center' }} accessibilityRole="link">
+      <Pressable onPress={() => router.push(`/media/${m.id}`)} onLongPress={() => openCoverMenu(m)} delayLongPress={450} style={{ flexDirection: 'row', gap: space[3], marginTop: space[3], alignItems: 'center' }} accessibilityRole="link">
         <Cover id={m.id} path={m.cover_path} width={46} />
         <View style={{ flex: 1 }}>
           <T v="titleSm">{m.title}</T>

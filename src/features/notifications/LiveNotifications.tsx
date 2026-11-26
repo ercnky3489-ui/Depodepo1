@@ -11,6 +11,7 @@ import { Flame } from '../../components/Streak';
 import { Avatar, T } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
 import { haptic } from '../../lib/haptics';
+import { celebrate } from '../../components/Confetti';
 import { playNotifySound, primeNotifySound } from '../../lib/notifySound';
 import { supabase } from '../../lib/supabase';
 import { color, radius, space } from '../../theme/tokens';
@@ -46,6 +47,7 @@ export function LiveNotifications() {
       qc.invalidateQueries({ queryKey: ['notifications'] });
       const visible = typeof document === 'undefined' || document.visibilityState === 'visible';
       if (visible) { playNotifySound(); haptic.select(); }
+      if (rows.some((r) => r.type === 'badge' || r.type === 'level_up')) celebrate({ big: true });
       setToast({ key: Date.now(), first: { ...first, actor }, more: rows.length - 1 });
       if (hideTimer.current) clearTimeout(hideTimer.current);
       hideTimer.current = setTimeout(() => setToast(null), 4500);
@@ -83,7 +85,7 @@ export function LiveNotifications() {
         ) : <View>
           <Avatar name={name} path={a?.avatar_path ?? null} size={40} />
           <View style={{ position: 'absolute', right: -4, bottom: -4, width: 20, height: 20, borderRadius: 10, backgroundColor: isLike ? '#FF5C7A' : color.primary,
-            alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#111916' }}>
+            alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: color.surface }}>
             <Svg width={11} height={11} viewBox="0 0 24 24">
               {isLike ? <Path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.8 4.5c2.2 0 3.6 1.2 5.2 3 1.6-1.8 3-3 5.2-3 3.8 0 5.9 3.9 4.4 7.3C19.5 16.4 12 21 12 21z" fill="#fff" />
                 : <Path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z" fill="#080B0A" />}

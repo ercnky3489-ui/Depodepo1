@@ -40,7 +40,7 @@ export function EditionsSection({ mediaId, title }: { mediaId: string; title: st
         <T v="bodySm" c={color.textMuted} style={{ marginTop: space[2] }}>Henüz baskı bilgisi yok. Elindeki kitabın yayınevini ve kapağını ekleyerek kataloğu büyüt.</T>
       ) : null}
       {list.map((e) => (
-        <View key={e.id} style={{ flexDirection: 'row', gap: space[3], paddingVertical: space[3], borderBottomWidth: 1, borderBottomColor: '#141D19',
+        <View key={e.id} style={{ flexDirection: 'row', gap: space[3], paddingVertical: space[3], borderBottomWidth: 1, borderBottomColor: color.border,
           ...(e.is_mine ? { backgroundColor: 'rgba(0,229,160,0.06)', borderRadius: radius.md, paddingHorizontal: space[2] } : null) }}>
           <Cover id={e.id} path={e.cover_path} width={52} />
           <View style={{ flex: 1, gap: 2 }}>

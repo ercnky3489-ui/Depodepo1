@@ -28,7 +28,7 @@ export default function Discover() {
         <View style={{ padding: space[4], paddingBottom: 0 }}>
           <T v="displayLg" accessibilityRole="header">Keşfet</T>
           <Pressable onPress={() => router.push('/search')} accessibilityRole="search"
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, height: 52, marginTop: 14, paddingHorizontal: space[4], borderRadius: 16, backgroundColor: color.surface, borderWidth: 1, borderColor: '#1F2B26' }}>
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, height: 52, marginTop: 14, paddingHorizontal: space[4], borderRadius: 16, backgroundColor: color.surface, borderWidth: 1, borderColor: color.borderStrong }}>
             <IconSearch size={20} c={color.primary} />
             <T v="bodySm" c={color.textMuted}>Kitap, yazar, film, dizi veya kişi ara</T>
           </Pressable>
@@ -88,7 +88,7 @@ export default function Discover() {
           <View style={{ paddingHorizontal: space[4] }}>
             {(trendBooks.data ?? []).slice(0, 5).map((b, i) => (
               <Pressable key={b.id} onPress={() => router.push(`/media/${b.id}`)} accessibilityRole="link"
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 68, borderBottomWidth: 1, borderBottomColor: '#141D19' }}>
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 68, borderBottomWidth: 1, borderBottomColor: color.border }}>
                 <T style={{ width: 22, fontFamily: 'Inter_800ExtraBold', fontSize: 18 }} c={i === 0 ? color.primary : color.text}>{i + 1}</T>
                 <Cover id={b.id} path={b.cover_path} width={36} radius={4} />
                 <View style={{ flex: 1 }}>

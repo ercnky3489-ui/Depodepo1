@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, type 
 import { haptic } from '../lib/haptics';
 import { imageUrl, placeholderColor } from '../lib/images';
 import { initials } from '../lib/format';
-import { color, glow, radius, space, type } from '../theme/tokens';
+import { color, glow, radius, space, type, isDark } from '../theme/tokens';
 
 type Variant = keyof typeof type;
 
@@ -45,7 +45,7 @@ const buttonKinds: Record<ButtonKind, { box: ViewStyle; text: string }> = {
 export function Avatar({ name, path, size = 34, ring }: { name?: string | null; path?: string | null; size?: number; ring?: boolean }) {
   const uri = imageUrl(path);
   return (
-    <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: '#23352D', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+    <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: isDark ? '#23352D' : color.surfaceHover, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
       ring && { borderWidth: 2, borderColor: color.primary }]}>
       {uri ? <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" accessibilityIgnoresInvertColors />
         : <Text style={{ color: color.text, fontFamily: 'Inter_700Bold', fontSize: size * 0.36 }}>{initials(name)}</Text>}

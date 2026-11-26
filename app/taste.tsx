@@ -77,7 +77,7 @@ export default function Taste() {
           );
         }}
       />
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: space[4], paddingBottom: space[8], backgroundColor: 'rgba(8,11,10,0.94)' }}>
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: space[4], paddingBottom: space[8], backgroundColor: color.bgTranslucent }}>
         <Button title={count >= 3 ? `Bitir (${count} seçildi)` : `En az ${3 - count} eser daha seç`} onPress={finish} disabled={count < 3} loading={busy} />
         <Button title="Şimdilik atla" kind="ghost" onPress={finish} />
       </View>

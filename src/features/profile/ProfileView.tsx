@@ -4,6 +4,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { openCoverMenu } from '../library/CoverMenu';
+import { SnapRow } from '../../components/SnapRow';
+import { TodayCard } from './TodayCard';
 import { useEffect, useMemo, useState } from 'react';
 import { ActionSheetIOS, Alert, Linking, Platform, Pressable, RefreshControl, ScrollView, Share, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -194,6 +197,7 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
 
             {tab === 'overview' ? (
               <>
+                {own ? <TodayCard /> : null}
                 {goal.data || own ? (
                   <View style={{ paddingHorizontal: space[4], marginTop: space[4] }}>
                     <GoalCard year={year} done={doneThisYear} target={goal.data ?? null} own={!!own} />
@@ -276,7 +280,7 @@ export function ProfileView({ userId, own, showBack }: { userId: string; own?: b
                     <Overline>Film incelemeleri</Overline>
                     {content.data!.reviews.filter((r) => r.media.kind === 'movie').map((r) => (
                       <Pressable key={r.id} onPress={() => router.push(`/review/${r.id}`)} accessibilityRole="link"
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], minHeight: 56, borderBottomWidth: 1, borderBottomColor: '#141D19' }}>
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], minHeight: 56, borderBottomWidth: 1, borderBottomColor: color.border }}>
                         <T v="label" style={{ flex: 1, fontSize: 14 }}>{r.media.title}</T>
                         <T v="caption" c={color.textMuted}>{r.helpful_count} faydalı</T>
                         <T v="label" c={color.primary} style={{ fontFamily: 'Inter_800ExtraBold' }}>{r.rating}</T>
@@ -376,7 +380,7 @@ function ReadingDistribution({ rows }: { rows: { status: string }[] }) {
   const done = n('completed');
   const total = planned + reading + done;
   const parts = [
-    { key: 'planned', label: 'Okuyacağım', count: planned, c: '#3A4A44' },
+    { key: 'planned', label: 'Okuyacağım', count: planned, c: color.borderStrong },
     { key: 'reading', label: 'Okuyorum', count: reading, c: color.accent },
     { key: 'done', label: 'Okuduğum', count: done, c: color.primary },
   ];
@@ -438,13 +442,13 @@ function Shelf({ title, items }: { title: string; items: { media: { id: string; 
   return (
     <View style={{ marginTop: 26 }}>
       <View style={{ paddingHorizontal: space[4] }}><Overline>{`${title} · ${items.length}`}</Overline></View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingHorizontal: space[4], paddingTop: space[3] }}>
+      <SnapRow itemWidth={86} gap={10} padding={space[4]} contentStyle={{ paddingTop: space[3] }} deps={items.length}>
         {items.slice(0, 20).map(({ media }) => (
-          <Pressable key={media.id} onPress={() => router.push(`/media/${media.id}`)} accessibilityRole="link" accessibilityLabel={media.title}>
+          <Pressable key={media.id} onPress={() => router.push(`/media/${media.id}`)} onLongPress={() => openCoverMenu(media)} delayLongPress={450} accessibilityRole="link" accessibilityLabel={media.title}>
             <Cover id={media.id} path={media.cover_path} title={media.title} width={86} radius={radius.xs} />
           </Pressable>
         ))}
-      </ScrollView>
+      </SnapRow>
     </View>
   );
 }
@@ -507,9 +511,9 @@ function NowStrip({ items }: { items: { media: { id: string; title: string; cove
   return (
     <View style={{ marginTop: 26 }}>
       <View style={{ paddingHorizontal: space[4] }}><Overline>Şu an</Overline></View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingHorizontal: space[4], paddingTop: space[3] }}>
+      <SnapRow itemWidth={104} gap={14} padding={space[4]} contentStyle={{ paddingTop: space[3] }} deps={items.length}>
         {items.map(({ media, tag }) => (
-          <Pressable key={`${tag}-${media.id}`} onPress={() => router.push(`/media/${media.id}`)} accessibilityRole="link" accessibilityLabel={`${media.title}, ${tag.toLocaleLowerCase('tr-TR')}`}
+          <Pressable key={`${tag}-${media.id}`} onPress={() => router.push(`/media/${media.id}`)} onLongPress={() => openCoverMenu(media)} delayLongPress={450} accessibilityRole="link" accessibilityLabel={`${media.title}, ${tag.toLocaleLowerCase('tr-TR')}`}
             style={{ width: 104 }}>
             <View style={{ shadowColor: color.primary, shadowOpacity: tag === 'OKUYOR' || tag === 'İZLİYOR' ? 0.35 : 0, shadowRadius: 14 }}>
               <Cover id={media.id} path={media.cover_path} title={media.title} width={104} radius={radius.sm} />
@@ -518,7 +522,7 @@ function NowStrip({ items }: { items: { media: { id: string; title: string; cove
             <T v="caption" c={color.text} numberOfLines={2} style={{ marginTop: 2, fontSize: 12 }}>{media.title}</T>
           </Pressable>
         ))}
-      </ScrollView>
+      </SnapRow>
     </View>
   );
 }

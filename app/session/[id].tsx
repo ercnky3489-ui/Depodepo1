@@ -10,6 +10,7 @@ import { useCreateQuote } from '../../src/api/content';
 import { useLibraryEntry, useMedia, useSaveCurrentPage } from '../../src/api/media';
 import { Button, Cover, T } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
+import { celebrate } from '../../src/components/Confetti';
 import { errorMessage, supabase } from '../../src/lib/supabase';
 import { getSoundVolume, setSoundVolume, SILENT, SOUNDS, SOUNDS_SUPPORTED, type Rgb, type SoundId } from '../../src/features/session/focusSounds';
 import { elapsedMs, endSession, freezeSession, isRunning, setSessionPage, setSessionSound, startSession, toggleSession, useActiveSession } from '../../src/features/session/sessionStore';
@@ -82,6 +83,7 @@ export default function ReadingSession() {
     supabase.rpc('mark_reading_today').then(({ error }) => {
       if (error) { markedDay.current = null; return; }
       qc.invalidateQueries({ queryKey: ['streak'] });
+      qc.invalidateQueries({ queryKey: ['readingToday'] });
     });
   }, [running, sec, qc]);
   const page = mine?.page ?? 0;
@@ -99,6 +101,7 @@ export default function ReadingSession() {
     const next = fn(page);
     if (!mine || next === page) return;
     setSessionPage(next);
+    haptic.page();
     pendingPage.current = next;
     if (pageTimer.current) clearTimeout(pageTimer.current);
     pageTimer.current = setTimeout(flushPage, 700);
@@ -135,11 +138,12 @@ export default function ReadingSession() {
     if (error) { Alert.alert('Kaydedilemedi', `${errorMessage(error)} Oturum duraklatıldı, tekrar deneyebilirsin.`); return; }
     setResult({ ...(data as Result), seconds: secs, pages: startPage !== null && page > startPage ? page - startPage : 0 });
     endSession();
-    haptic.success();
+    if ((data as Result).milestone) { celebrate({ big: true }); haptic.streak(); } else haptic.success();
     qc.invalidateQueries({ queryKey: ['library'] });
     qc.invalidateQueries({ queryKey: ['streak'] });
     qc.invalidateQueries({ queryKey: ['profileSummary'] });
     qc.invalidateQueries({ queryKey: ['shelves'] });
+    qc.invalidateQueries({ queryKey: ['readingToday'] });
   };
 
   const close = () => {
@@ -160,7 +164,7 @@ export default function ReadingSession() {
   const cur = SOUNDS.find((q) => q.id === sound) ?? SILENT;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#060A09' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: color.bg }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: space[4], paddingBottom: space[6], alignItems: 'center' }}>
         <View style={{ alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', height: 52 }}>
           <Pressable onPress={minimize} accessibilityRole="button" accessibilityLabel="Küçült, oturum sürsün" hitSlop={10} style={{ width: 44, height: 44, justifyContent: 'center' }}>
@@ -213,7 +217,7 @@ export default function ReadingSession() {
 
       <Sheet visible={soundsOpen} onClose={() => setSoundsOpen(false)}>
         <Pressable onPress={() => setSoundsOpen(false)} accessibilityRole="button" accessibilityLabel="Tamam" hitSlop={8}
-          style={{ position: 'absolute', top: 18, right: 16, zIndex: 2, paddingHorizontal: 16, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: '#1E2A25' }}>
+          style={{ position: 'absolute', top: 18, right: 16, zIndex: 2, paddingHorizontal: 16, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: color.surfaceHover }}>
           <T v="label">Tamam</T>
         </Pressable>
         <T style={{ fontFamily: 'Fraunces_400Regular_Italic', fontSize: 38, lineHeight: 46, color: color.text, textAlign: 'center', marginTop: space[4] }}>{cur.label}</T>
@@ -263,7 +267,7 @@ function PageBtn({ label, onPress, a11y }: { label: string; onPress: () => void;
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={a11y} hitSlop={6}
       style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: color.surface,
-        borderWidth: 1, borderColor: '#1F2B26', transform: [{ scale: pressed ? 0.92 : 1 }] })}>
+        borderWidth: 1, borderColor: color.borderStrong, transform: [{ scale: pressed ? 0.92 : 1 }] })}>
       <T style={{ fontFamily: 'Inter_800ExtraBold', fontSize: 22, lineHeight: 26, color: color.text }}>{label}</T>
     </Pressable>
   );
@@ -273,7 +277,7 @@ function Pill({ label, onPress, icon, active }: { label: string; onPress: () => 
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}
       style={({ pressed }) => ({ flex: 1, height: 52, borderRadius: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-        backgroundColor: active ? 'rgba(0,229,160,0.12)' : color.surface, borderWidth: 1, borderColor: active ? color.primary : '#1F2B26',
+        backgroundColor: active ? 'rgba(0,229,160,0.12)' : color.surface, borderWidth: 1, borderColor: active ? color.primary : color.borderStrong,
         transform: [{ scale: pressed ? 0.97 : 1 }] })}>
       <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={active ? color.primary : color.text} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">{icon}</Svg>
       <T v="label" c={active ? color.primary : color.text}>{label}</T>
@@ -284,9 +288,9 @@ function Pill({ label, onPress, icon, active }: { label: string; onPress: () => 
 function Sheet({ visible, onClose, title, children }: { visible: boolean; onClose: () => void; title?: string; children: React.ReactNode }) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable onPress={onClose} accessibilityLabel="Kapat" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
+      <Pressable onPress={onClose} accessibilityLabel="Kapat" style={{ flex: 1, backgroundColor: color.scrim, justifyContent: 'flex-end' }}>
         <Pressable onPress={() => {}} style={{ backgroundColor: color.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: space[4], paddingBottom: space[8], gap: space[3] }}>
-          <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#2A3A33' }} />
+          <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: color.borderStrong }} />
           {title ? <T v="titleSm">{title}</T> : null}
           {children}
         </Pressable>
@@ -354,7 +358,7 @@ function SoundCards({ value, onPick }: { value: SoundId | null; onPick: (s: Soun
         return (
           <Pressable key={s.id ?? 'off'} onPress={() => onPick(s.id)} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={s.label}
             style={({ pressed }) => ({ width: '31.5%', alignItems: 'center', gap: 4, paddingTop: 8, paddingBottom: 10, borderRadius: radius.md,
-              backgroundColor: '#0F1714', borderWidth: on ? 2 : 1, borderColor: on ? color.primary : color.borderStrong,
+              backgroundColor: color.surfaceSunken, borderWidth: on ? 2 : 1, borderColor: on ? color.primary : color.borderStrong,
               shadowColor: color.primary, shadowOpacity: on ? 0.35 : 0, shadowRadius: 16, transform: [{ scale: pressed ? 0.96 : 1 }] })}>
             <SceneCanvas id={s.id ?? 'off'} tint={s.tint} width={72} height={52} scale={0.8} opacity={on ? 1 : 0.55} />
             <T v="label" c={on ? color.text : color.textSoft}>{s.label}</T>

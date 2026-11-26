@@ -2,9 +2,14 @@
 import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, RefreshControl, View } from 'react-native';
+import { Platform, Pressable, RefreshControl, View } from 'react-native';
+import { PullToRefresh } from '../../src/components/PullToRefresh';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFeed } from '../../src/api/feed';
+import { useFeed, useToggleLike } from '../../src/api/feed';
+import { useQueryClient } from '@tanstack/react-query';
+import { SwipeRow } from '../../src/components/SwipeRow';
+import { supabase } from '../../src/lib/supabase';
+import type { FeedItem } from '../../src/types/db';
 import { useStreak } from '../../src/api/profileDetails';
 import { useUnreadCount } from '../../src/api/social';
 import { StreakChip } from '../../src/components/Streak';
@@ -22,6 +27,22 @@ export default function Home() {
   const unread = useUnreadCount().data ?? 0;
   const streak = useStreak(profile?.id ?? null).data;
   const items = feed.data?.pages.flat() ?? [];
+  const like = useToggleLike();
+  const qc = useQueryClient();
+  const uid = profile?.id ?? null;
+  // Kaydırarak işlem: sağa → beğen (alıntı, inceleme, liste), sola → "Okuyacağım"/"İzleyeceğim"e ekle
+  const swipe = (item: FeedItem) => {
+    const type = item.verb === 'quoted' ? 'quote' : item.verb === 'reviewed' ? 'review' : item.verb === 'created_list' ? 'list' : null;
+    const id = item.object?.id;
+    const m = item.media;
+    return {
+      right: type && id ? { label: item.liked_by_me ? '♥ Zaten beğendin' : '♥ Beğen', done: '♥ Beğendin', onAction: () => { if (!item.liked_by_me) like.mutate({ type, id }); } } : null,
+      left: m && uid ? { label: m.kind === 'book' ? 'Okuyacağım 🔖' : 'İzleyeceğim 🔖', done: 'Listene eklendi ✓', onAction: () => {
+        supabase.from('library_entries').upsert({ user_id: uid, media_id: m.id, status: 'planned' }, { onConflict: 'user_id,media_id', ignoreDuplicates: true })
+          .then(() => { ['shelves', 'library', 'me'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })); });
+      } } : null,
+    };
+  };
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: color.bg }}>
@@ -43,14 +64,17 @@ export default function Home() {
         </View>
       </View>
       <ChipRow items={FEED_FILTERS} value={filter} onChange={setFilter} />
+      <PullToRefresh onRefresh={() => feed.refetch()}>{(onScroll) => (
       <FlashList
         data={items}
+        onScroll={onScroll}
+        scrollEventThrottle={32}
         keyExtractor={(it) => it.id}
-        renderItem={({ item }) => <View style={{ paddingHorizontal: space[3], paddingBottom: 14 }}><ActivityCard item={item} /></View>}
+        renderItem={({ item }) => <View style={{ paddingHorizontal: space[3], paddingBottom: 14 }}><SwipeRow {...swipe(item)}><ActivityCard item={item} /></SwipeRow></View>}
         getItemType={(it) => it.verb}
         onEndReached={() => { if (feed.hasNextPage && !feed.isFetchingNextPage) feed.fetchNextPage(); }}
         onEndReachedThreshold={0.6}
-        refreshControl={<RefreshControl refreshing={feed.isRefetching} onRefresh={() => { void feed.refetch(); }} tintColor={color.primary} />}
+        refreshControl={Platform.OS === 'web' ? undefined : <RefreshControl refreshing={feed.isRefetching} onRefresh={() => { void feed.refetch(); }} tintColor={color.primary} />}
         ListHeaderComponent={<View style={{ height: space[1] }} />}
         ListFooterComponent={feed.isFetchingNextPage ? <Loading /> : <View style={{ height: 40 }} />}
         ListEmptyComponent={feed.isLoading ? <Loading /> : (
@@ -62,6 +86,7 @@ export default function Home() {
           />
         )}
       />
+      )}</PullToRefresh>
     </SafeAreaView>
   );
 }

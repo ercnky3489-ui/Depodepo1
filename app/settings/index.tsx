@@ -10,7 +10,7 @@ import { IconBack } from '../../src/components/icons';
 import { Button, T } from '../../src/components/ui';
 import { signOut, useAuth, useUserId } from '../../src/lib/auth';
 import { supabase } from '../../src/lib/supabase';
-import { color, radius, space } from '../../src/theme/tokens';
+import { color, radius, space, setTheme, themeName } from '../../src/theme/tokens';
 
 type Settings = {
   notify_follows: boolean; notify_likes: boolean; notify_comments: boolean; notify_badges: boolean; notify_streak: boolean;
@@ -66,6 +66,23 @@ export default function SettingsScreen() {
           {toggle('hide_page_numbers_default', 'Alıntılarda sayfa numarasını gizle', 'Yeni alıntılarda varsayılan.')}
           {toggle('hide_unwatched_spoilers', 'İzlemediğim bölümlerin içeriklerini gizle', 'İşaretlenmemiş spoiler\'lara karşı ek koruma.')}
           {toggle('allow_tagging', 'Beni etiketleyebilsinler')}
+        </Group>
+
+        <Group title="Görünüm">
+          <View style={{ flexDirection: 'row', gap: space[2], padding: space[3] }} accessibilityRole="radiogroup">
+            {([['dark', 'Koyu', '#080B0A', '#F4F8F5'], ['light', 'Açık', '#F4F7F5', '#14201B'], ['sepia', 'Sepya', '#F2E8D3', '#3A2E21']] as const).map(([id, label, bg, fg]) => {
+              const on = themeName === id;
+              return (
+                <Pressable key={id} onPress={() => { if (!on) setTheme(id); }} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={`${label} tema`}
+                  style={{ flex: 1, alignItems: 'center', gap: 6, paddingVertical: space[3], borderRadius: radius.md, borderWidth: on ? 2 : 1,
+                    borderColor: on ? color.primary : color.borderStrong, backgroundColor: bg }}>
+                  <T style={{ fontFamily: 'Fraunces_700Bold', fontSize: 20, color: fg }}>Aa</T>
+                  <T v="caption" style={{ color: fg }}>{label}</T>
+                </Pressable>
+              );
+            })}
+          </View>
+          <T v="caption" c={color.textMuted} style={{ paddingHorizontal: space[3], paddingBottom: space[3] }}>Sepya, kâğıt tonudur; uzun okuma oturumlarında gözü daha az yorar.</T>
         </Group>
 
         <Group title="Bildirimler">

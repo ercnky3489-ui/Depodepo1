@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { haptic } from '../lib/haptics';
+import { celebrate } from '../components/Confetti';
 import { useUserId } from '../lib/auth';
 import type { LibraryEntry, LibraryStatus, MediaDetail, Quote, Review } from '../types/db';
 
@@ -21,6 +22,7 @@ function refreshLibraryViews(qc: ReturnType<typeof useQueryClient>, uid: string 
   qc.invalidateQueries({ queryKey: ['feed'] });
   qc.invalidateQueries({ queryKey: ['wrapped'] });
   qc.invalidateQueries({ queryKey: ['streak'] });
+  qc.invalidateQueries({ queryKey: ['readingToday'] });
 }
 
 export function useMedia(id: string) {
@@ -61,7 +63,9 @@ export function useSetLibrary(mediaId: string) {
       return data as LibraryEntry;
     },
     onMutate: () => haptic.status(),
-    onSuccess: (entry) => {
+    onSuccess: (entry, patch) => {
+      const before = qc.getQueryData<LibraryEntry | null>(['library', uid, mediaId]);
+      if (patch.status === 'completed' && before?.status !== 'completed') celebrate(); // kitap bitti: kutlama
       qc.setQueryData(['library', uid, mediaId], entry);
       qc.invalidateQueries({ queryKey: ['media', mediaId] });
       refreshLibraryViews(qc, uid);

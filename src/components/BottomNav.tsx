@@ -22,9 +22,9 @@ export function BottomNav({ state, emitter, navigateToTab }: BottomTabBarProps) 
   const unread = useUnreadCount().data ?? 0;
   const active = state.routes[state.index]?.name;
   return (
-    <View style={{ backgroundColor: 'rgba(8,11,10,0.94)' }}>
+    <View style={{ backgroundColor: color.bgTranslucent }}>
     <MiniSession />
-    <View accessibilityRole="tablist" style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#16201C',
+    <View accessibilityRole="tablist" style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: color.border,
       paddingTop: space[2], paddingBottom: Math.max(insets.bottom, space[3]) }}>
       {TABS.map((tab) => {
         if (tab.name === 'share') {

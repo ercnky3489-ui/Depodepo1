@@ -12,6 +12,7 @@ import { errorMessage, supabase } from '../../src/lib/supabase';
 import { useUserId } from '../../src/lib/auth';
 import { charsUntilXp, WITHHELD_TEXT } from '../../src/lib/xp';
 import { inputStyle } from '../../src/theme/inputs';
+import { PhotoQuote } from '../../src/features/quote/PhotoQuote';
 import { color, space } from '../../src/theme/tokens';
 
 export default function ComposeQuote() {
@@ -64,6 +65,7 @@ export default function ComposeQuote() {
             <Cover id={m.id} path={m.cover_path} width={40} />
             <View><T v="overline" c={color.primary}>ALINTI</T><T v="titleSm">{m.title}</T></View>
           </View>
+          {isBook ? <PhotoQuote onPick={(t) => setBody((b) => (b ? `${b} ${t}` : t).slice(0, 600))} /> : null}
           <TextInput value={body} onChangeText={(t) => setBody(t.slice(0, 600))} multiline autoFocus placeholder={isBook ? 'Sayfadaki cümleyi yaz…' : 'Repliği yaz…'}
             placeholderTextColor={color.textFaint} accessibilityLabel="Alıntı metni"
             style={[inputStyle, { height: 180, paddingTop: 14, textAlignVertical: 'top', fontFamily: 'Fraunces_400Regular', fontSize: 18 }]} />

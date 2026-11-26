@@ -31,7 +31,7 @@ export function MiniSession() {
     <Pressable onPress={() => { haptic.select(); router.push(`/session/${s.mediaId}`); }} accessibilityRole="button"
       accessibilityLabel={`Okuma oturumu: ${s.title}, ${Math.floor(sec / 60)} dakika, ${detail}. Oturuma dön`}
       style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space[3], marginHorizontal: space[3], marginTop: space[2], marginBottom: 2,
-        padding: 8, paddingRight: 10, borderRadius: radius.lg, backgroundColor: '#0F1A16', borderWidth: 1, borderColor: run ? 'rgba(0,229,160,0.45)' : '#22302A',
+        padding: 8, paddingRight: 10, borderRadius: radius.lg, backgroundColor: color.surface, borderWidth: 1, borderColor: run ? 'rgba(0,229,160,0.45)' : color.borderStrong,
         shadowColor: color.primary, shadowOpacity: run ? 0.25 : 0, shadowRadius: 14, transform: [{ scale: pressed ? 0.98 : 1 }] })}>
       <Cover id={s.mediaId} path={s.coverPath} title={s.title} width={34} radius={radius.xs} />
       <View style={{ flex: 1, minWidth: 0 }}>

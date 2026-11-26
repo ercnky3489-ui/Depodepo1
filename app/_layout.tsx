@@ -13,9 +13,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { registerPushToken } from '../src/api/social';
 import { AuthProvider, useAuth } from '../src/lib/auth';
 import { LiveNotifications } from '../src/features/notifications/LiveNotifications';
+import { ConfettiHost } from '../src/components/Confetti';
+import { CoverMenuHost } from '../src/features/library/CoverMenu';
 import { registerServiceWorker } from '../src/lib/webPush';
 import { BrandSplash } from '../src/components/BrandSplash';
-import { color } from '../src/theme/tokens';
+import { color, isDark } from '../src/theme/tokens';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -64,6 +66,7 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="taste" />
         <Stack.Screen name="challenge" options={{ animation: 'fade' }} />
+        <Stack.Screen name="club/[id]" />
         <Stack.Screen name="session/[id]" options={{ animation: 'fade', gestureEnabled: false }} />
         <Stack.Screen name="wrapped" options={{ animation: 'fade' }} />
         <Stack.Screen name="media/[id]" />
@@ -92,9 +95,11 @@ export default function RootLayout() {
         <SafeAreaProvider>
           <QueryClientProvider client={queryClient}>
             <AuthProvider>
-              <StatusBar style="light" />
+              <StatusBar style={isDark ? "light" : "dark"} />
               <RootNavigator />
               <LiveNotifications />
+              <CoverMenuHost />
+              <ConfettiHost />
             </AuthProvider>
           </QueryClientProvider>
         </SafeAreaProvider>

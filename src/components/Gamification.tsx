@@ -90,7 +90,7 @@ const METALS = {
   3: ['#7A5A14', '#F3D27A', '#A87A1E', '#FFF1C1', '#8A6517', '#E9C25C'],
   2: ['#5E6B66', '#E6EFE9', '#8D9A94', '#FFFFFF', '#5D6964', '#CFD8D3'],
   1: ['#5A3216', '#D99A64', '#8A4F24', '#F2C49B', '#6B3A18', '#C98652'],
-  0: ['#1C2420', '#3A4741', '#222B27', '#4A5852', '#1C2420', '#3A4741'],
+  0: [color.border, '#3A4741', '#222B27', '#4A5852', color.border, '#3A4741'],
 } as const;
 
 const BADGE_ICONS: Record<string, string> = {

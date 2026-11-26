@@ -92,7 +92,7 @@ export default function Pick() {
             {googleItems.map((g) => (
               <Pressable key={g.google_id} onPress={() => chooseGoogle(g)} disabled={!!importing} accessibilityRole="button"
                 accessibilityLabel={`${g.title}, ${g.authors.join(', ')}`} accessibilityHint="Kitabı BOOKFLIX'e ekler ve seçer"
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 72, borderBottomWidth: 1, borderBottomColor: '#141D19' }}>
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 72, borderBottomWidth: 1, borderBottomColor: color.border }}>
                 <View style={{ width: 40, height: 60, borderRadius: 4, overflow: 'hidden', backgroundColor: color.surface }}>
                   {g.cover_url ? <Image source={{ uri: g.cover_url }} style={{ width: 40, height: 60 }} contentFit="cover" /> : null}
                 </View>
@@ -115,7 +115,7 @@ export default function Pick() {
         ) : <EmptyState title="Aramaya başla" body="En az 2 harf yaz." />}
         renderItem={({ item: m }) => (
           <Pressable onPress={() => choose(m)} accessibilityRole="button" accessibilityLabel={m.title}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 72, borderBottomWidth: 1, borderBottomColor: '#141D19' }}>
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 72, borderBottomWidth: 1, borderBottomColor: color.border }}>
             <Cover id={m.id} path={m.cover_path} width={40} />
             <View style={{ flex: 1 }}>
               <T v="label" style={{ fontSize: 15 }}>{m.title}</T>

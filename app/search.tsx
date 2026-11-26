@@ -72,7 +72,7 @@ export default function Search() {
       ) : googleHits.map((g) => (
         <Pressable key={g.google_id} onPress={() => openGoogle(g)} disabled={!!opening} accessibilityRole="button"
           accessibilityLabel={`${g.title}, ${g.authors.join(', ')}. Google Books'tan kataloğa ekle ve aç`}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 72, borderBottomWidth: 1, borderBottomColor: '#141D19', opacity: opening && opening !== g.google_id ? 0.5 : 1 }}>
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 72, borderBottomWidth: 1, borderBottomColor: color.border, opacity: opening && opening !== g.google_id ? 0.5 : 1 }}>
           {g.cover_url ? <Image source={{ uri: g.cover_url }} style={{ width: 40, height: 60, borderRadius: 4, backgroundColor: color.surface }} contentFit="cover" />
             : <View style={{ width: 40, height: 60, borderRadius: 4, backgroundColor: color.surface }} />}
           <View style={{ flex: 1 }}>
@@ -128,7 +128,7 @@ export default function Search() {
                 if (r.type === 'author') { setText(r.title); setScope('book'); return; } // yazarın kitaplarını listeler
                 router.push(r.type === 'user' ? `/user/${r.id}` : `/media/${r.id}`);
               }}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 72, borderBottomWidth: 1, borderBottomColor: '#141D19' }}>
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 72, borderBottomWidth: 1, borderBottomColor: color.border }}>
               {r.type === 'media' ? <Cover id={r.id} path={r.cover} width={40} />
                 : <Avatar name={r.title.replace('@', '')} path={r.type === 'author' ? r.photo : r.avatar} size={48} />}
               <View style={{ flex: 1 }}>

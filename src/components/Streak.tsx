@@ -12,7 +12,7 @@ export const MILESTONE_XP = 25;
 export function Flame({ size = 18, lit = true }: { size?: number; lit?: boolean }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Path d="M12 2c1 4 5 5.5 5 10a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3-1-5 1-8.5z" fill={lit ? '#FF9F43' : '#3A4A44'} />
+      <Path d="M12 2c1 4 5 5.5 5 10a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3-1-5 1-8.5z" fill={lit ? '#FF9F43' : color.borderStrong} />
       <Path d="M12 12c.6 1.8 2.5 2.4 2.5 4.3a2.5 2.5 0 0 1-5 0c0-1.2.7-2 1.3-2.6.2 1 .7 1.4 1.2 1.4 0-1.2-.3-2 0-3.1z" fill={lit ? '#FFE08A' : '#55665F'} />
     </Svg>
   );
@@ -25,7 +25,7 @@ export function StreakChip({ streak }: { streak: Streak | null | undefined }) {
     <Pressable onPress={() => router.push('/(tabs)/profile')} accessibilityRole="button"
       accessibilityLabel={`${n} günlük okuma serisi${lit ? ', bugün okudun' : ', bugün henüz okumadın'}`}
       style={{ flexDirection: 'row', alignItems: 'center', gap: 4, height: 32, paddingHorizontal: 10, borderRadius: 16, marginRight: 4,
-        backgroundColor: lit ? 'rgba(255,159,67,0.14)' : color.surface, borderWidth: 1, borderColor: lit ? 'rgba(255,159,67,0.5)' : '#1F2B26' }}>
+        backgroundColor: lit ? 'rgba(255,159,67,0.14)' : color.surface, borderWidth: 1, borderColor: lit ? 'rgba(255,159,67,0.5)' : color.borderStrong }}>
       <Flame lit={lit || n > 0} />
       <T v="label" c={lit ? '#FFB86B' : color.textMuted} style={{ fontFamily: 'Inter_800ExtraBold', fontVariant: ['tabular-nums'] }}>{n}</T>
     </Pressable>
@@ -59,7 +59,7 @@ export function StreakCard({ streak, own }: { streak: Streak | null | undefined;
           return (
             <View key={m} style={{ alignItems: 'center', gap: 4 }}>
               <View style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
-                backgroundColor: done ? 'rgba(255,159,67,0.18)' : 'transparent', borderWidth: 1.5, borderColor: done ? '#FF9F43' : '#2A3A33' }}>
+                backgroundColor: done ? 'rgba(255,159,67,0.18)' : 'transparent', borderWidth: 1.5, borderColor: done ? '#FF9F43' : color.borderStrong }}>
                 <T style={{ fontFamily: 'Inter_800ExtraBold', fontSize: 11, color: done ? '#FFB86B' : color.textFaint }}>{m}</T>
               </View>
             </View>

@@ -69,7 +69,7 @@ export default function Challenge() {
               <Pressable key={p.n} onPress={() => { haptic.select(); setGoal(p.n); }} accessibilityRole="button" accessibilityState={{ selected: on }}
                 accessibilityLabel={`${p.n} kitap, ${p.l}`}
                 style={{ flex: 1, paddingVertical: 12, borderRadius: radius.md, alignItems: 'center', borderWidth: 1,
-                  borderColor: on ? color.primary : '#1F2B26', backgroundColor: on ? 'rgba(0,229,160,0.12)' : color.surface }}>
+                  borderColor: on ? color.primary : color.borderStrong, backgroundColor: on ? 'rgba(0,229,160,0.12)' : color.surface }}>
                 <T v="label" c={on ? color.primary : color.text} style={{ fontFamily: 'Inter_800ExtraBold', fontSize: 18 }}>{p.n}</T>
                 <T v="caption" c={color.textMuted} style={{ fontSize: 11 }}>{p.l}</T>
               </Pressable>

@@ -1,5 +1,6 @@
 // Kitap / film / dizi detayı: büyük afiş, ayrı puan rozetleri, durum, dizi takibi, sekmeler, geçmiş ve istatistik.
 import { Image } from 'expo-image';
+import { useQuery } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -16,6 +17,9 @@ import { Avatar, Button, Card, ChipRow, Cover, EmptyState, Loading, Overline, T 
 import { formatNumber, minutesToText, relativeTime } from '../../src/lib/format';
 import { haptic } from '../../src/lib/haptics';
 import { imageUrl } from '../../src/lib/images';
+import { supabase } from '../../src/lib/supabase';
+import { useCoverColor } from '../../src/lib/coverColor';
+import { isDark } from '../../src/theme/tokens';
 import { color, radius, space } from '../../src/theme/tokens';
 import { inputStyle } from '../../src/theme/inputs';
 import type { LibraryStatus, MediaDetail } from '../../src/types/db';
@@ -50,6 +54,8 @@ export default function MediaDetailScreen() {
   const progress = useSeriesProgress(id, isSeries);
   const toggleEp = useToggleEpisode(id);
 
+  const tint = useCoverColor(imageUrl(media.data?.cover_path ?? null), id);
+  const clubCount = useQuery({ queryKey: ['clubCount', id], enabled: media.data?.kind === 'book', queryFn: async () => (await supabase.rpc('club_count', { p_media: id })).data as number });
   if (media.isLoading || !m) return <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}><Loading /></View>;
 
   const labels = STATUS_LABELS[m.kind];
@@ -82,14 +88,18 @@ export default function MediaDetailScreen() {
   const colon = isBook ? m.title.indexOf(': ') : -1;
   const mainTitle = colon > 0 ? m.title.slice(0, colon) : m.title;
   const subTitle = colon > 0 ? m.title.slice(colon + 2) : null;
+  // tint: kapaktan gelen renk; başlığın altı bu renkten koyu zemine yumuşakça geçer
+  const tintFade = tint.replace('rgb(', 'rgba(').replace(')', ',0.55)');
 
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>
+      {/* Kapağın renginden zemine yayılan geçiş */}
+      <LinearGradient colors={[tint, color.bg]} locations={[0, 1]} style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 1100 }} pointerEvents="none" />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
-        <View style={{ height: 480, backgroundColor: '#0D1830' }}>
-          {hero ? <Image source={{ uri: hero }} style={[StyleSheet.absoluteFill, isBook && { opacity: 0.35 }]} contentFit="cover" transition={250}
-            blurRadius={isBook ? 40 : 0} accessibilityIgnoresInvertColors /> : null}
-          <LinearGradient colors={['rgba(8,11,10,0)', color.bg]} locations={[0, 0.92]} style={[StyleSheet.absoluteFill, { top: isBook ? 0 : 220 }]} />
+        <View style={{ height: 480, backgroundColor: 'transparent' }}>
+          {hero ? <Image source={{ uri: hero }} style={[StyleSheet.absoluteFill, isBook && { opacity: isDark ? 0.55 : 0.28 }]} contentFit="cover" transition={250}
+            blurRadius={isBook ? 60 : 0} accessibilityIgnoresInvertColors /> : null}
+          <LinearGradient colors={['rgba(8,11,10,0)', 'rgba(8,11,10,0.15)', tintFade]} locations={[0, 0.6, 1]} style={[StyleSheet.absoluteFill, { top: isBook ? 0 : 220 }]} />
           <View style={{ position: 'absolute', top: insets.top + 8, left: 12, right: 12, flexDirection: 'row', justifyContent: 'space-between' }}>
             <Glass label="Geri" onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}><IconBack /></Glass>
             <Glass label="Paylaş" onPress={() => Share.share({ message: `${m.title} · BOOKFLIX: bookflix://media/${m.id}` })}><IconShare c={color.text} /></Glass>
@@ -120,7 +130,7 @@ export default function MediaDetailScreen() {
               <Pressable key={s} onPress={() => pickStatus(s)} accessibilityRole="radio" accessibilityState={{ selected: on }}
                 accessibilityHint={on ? 'Tekrar dokunursan listenden çıkarılır' : undefined}
                 style={[{ flex: 1, height: 48, borderRadius: radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-                  on ? { backgroundColor: color.primary, borderColor: color.primary, shadowColor: color.primary, shadowOpacity: 0.4, shadowRadius: 22 } : { backgroundColor: color.surface, borderColor: '#1F2B26' }]}>
+                  on ? { backgroundColor: color.primary, borderColor: color.primary, shadowColor: color.primary, shadowOpacity: 0.4, shadowRadius: 22 } : { backgroundColor: color.surface, borderColor: color.borderStrong }]}>
                 <T v="label" c={on ? color.onPrimary : color.text} style={{ fontFamily: 'Inter_700Bold' }}>{labels[s]}</T>
               </Pressable>
             );
@@ -130,6 +140,7 @@ export default function MediaDetailScreen() {
         {m.kind === 'book' ? (
           <View style={{ paddingHorizontal: space[4], marginTop: space[3] }}>
             <Button title={activeSession?.mediaId === m.id ? "Süren oturuma dön" : "Okuma oturumu başlat"} onPress={() => router.push(`/session/${m.id}`)} />
+            <Button title={`Kitap kulübü${clubCount.data ? ` · ${clubCount.data} mesaj` : ""}`} kind="secondary" onPress={() => router.push(`/club/${m.id}`)} style={{ marginTop: space[2] }} />
           </View>
         ) : null}
 
@@ -152,7 +163,7 @@ export default function MediaDetailScreen() {
           </Card>
         ) : null}
 
-        <View style={{ marginTop: 20, borderBottomWidth: 1, borderBottomColor: '#16201C' }}>
+        <View style={{ marginTop: 20, borderBottomWidth: 1, borderBottomColor: color.border }}>
           <ChipRow items={tabs} value={tab} onChange={setTab} />
         </View>
 
@@ -273,7 +284,7 @@ function DetailsTab({ m }: { m: MediaDetail }) {
               return (
                 <Pressable key={s.id} onPress={() => setSeason(s.season_number)} accessibilityRole="button" accessibilityState={{ selected: on }}
                   style={{ height: 40, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: 6,
-                    borderColor: on ? color.primary : '#1F2B26', backgroundColor: on ? 'rgba(0,229,160,0.1)' : color.surface }}>
+                    borderColor: on ? color.primary : color.borderStrong, backgroundColor: on ? 'rgba(0,229,160,0.1)' : color.surface }}>
                   <T v="label">{s.season_number}. Sezon</T>
                   <T v="caption" c={on ? color.primary : color.textFaint}>{done}/{s.episodes.length}</T>
                 </Pressable>
@@ -285,7 +296,7 @@ function DetailsTab({ m }: { m: MediaDetail }) {
               onPress={() => toggle.mutate({ episodeId: e.id, watched: e.watched })}
               accessibilityRole="checkbox" accessibilityState={{ checked: e.watched }}
               accessibilityLabel={`${e.episode_number}. bölüm${e.title ? `, ${e.title}` : ''}`} accessibilityHint="Uzun basınca bu bölüme kadar hepsi izlendi olur"
-              style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], minHeight: 56, borderBottomWidth: 1, borderBottomColor: '#141D19' }}>
+              style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], minHeight: 56, borderBottomWidth: 1, borderBottomColor: color.border }}>
               <T v="label" c={e.watched ? color.primary : color.textFaint} style={{ width: 26, fontFamily: 'Inter_700Bold' }}>{e.episode_number}</T>
               <View style={{ flex: 1 }}>
                 <T v="label" c={e.watched ? color.textSoft : color.text} style={{ fontSize: 14 }}>{e.title ?? `${e.episode_number}. Bölüm`}</T>
@@ -303,7 +314,7 @@ function DetailsTab({ m }: { m: MediaDetail }) {
       {history.data?.length ? (
         <View>
           <Overline>{m.kind === 'book' ? 'Okuma geçmişin' : 'İzleme geçmişin'}</Overline>
-          <View style={{ marginTop: space[3], paddingLeft: 14, borderLeftWidth: 1, borderLeftColor: '#22302A', gap: 14 }}>
+          <View style={{ marginTop: space[3], paddingLeft: 14, borderLeftWidth: 1, borderLeftColor: color.borderStrong, gap: 14 }}>
             {history.data.map((h, i) => (
               <View key={h.id}>
                 <View style={{ position: 'absolute', left: -19, top: 5, width: 9, height: 9, borderRadius: 5, backgroundColor: i === 0 ? color.primary : color.borderStrong }} />
