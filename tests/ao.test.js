@@ -23,12 +23,15 @@ const APP=path.resolve(process.argv[2]||'../out55.html');const TH=path.join(__di
   r=await p.evaluate(()=>{AG.st.ag.gib.s='hata';AG.st.ag.gib.err='Kurgu test hatası';aoRefresh(true);const d=AO.desks.find(x=>x.ag==='gib');return {state:d.state,lamp:'#'+d.lamp.material.color.getHexString(),open:aoAg('sahis').open,real:agOpenTasks(t=>t.ag==='sahis').length}});
   ok(r.state==='hata'&&r.lamp==='#ff5a6e','Masa durumu ajan kaydından okunuyor: GİB okuyucu “hata” → kırmızı lamba',r);
   ok(r.open===r.real,'Açık görev sayısı Görevler listesiyle aynı ('+r.real+')',r);
-  const kp=await p.evaluate(()=>{const T=AO.T;const d=AO.desks.find(x=>x.ag==='gib');const v=new T.Vector3();d.hit.getWorldPosition(v);v.project(AO.cam);const rc=AO.canvas.getBoundingClientRect();return {x:rc.left+(v.x+1)/2*rc.width,y:rc.top+(1-v.y)/2*rc.height}});
+  await p.evaluate(()=>document.querySelector('.ao-stage').scrollIntoView({block:'center'}));await p.waitForTimeout(300);
+  await p.click('.ao-dep[data-ao-dep="gib"]');await p.waitForFunction(()=>!AO.fly,null,{timeout:30000});await p.waitForTimeout(300);
+  const kp=await p.evaluate(()=>{const T=AO.T;const d=AO.desks.find(x=>x.ag==='gib');const rc=AO.canvas.getBoundingClientRect();const ray=new T.Raycaster();const hits=AO.desks.map(x=>x.hit);d.hit.updateWorldMatrix(true,false);
+    for(const [a,b,c] of [[0,0,0],[0,.5,.4],[.6,.6,.4],[-.6,.6,.4],[0,.8,-.4],[.6,.2,0],[-.6,.2,0]]){const v=new T.Vector3(a,b,c).applyMatrix4(d.hit.matrixWorld);const pr=v.clone().project(AO.cam);ray.setFromCamera(new T.Vector2(pr.x,pr.y),AO.cam);const h=ray.intersectObjects(hits,false)[0];if(h&&h.object===d.hit&&Math.abs(pr.x)<.95&&Math.abs(pr.y)<.95)return {x:rc.left+(pr.x+1)/2*rc.width,y:rc.top+(1-pr.y)/2*rc.height}}return null});
   await p.mouse.move(kp.x,kp.y);await p.mouse.down();await p.mouse.up();await p.waitForTimeout(400);
   r=await p.evaluate(()=>{const pn=document.getElementById('aoPanel');return {hid:pn.hidden,t:pn.textContent.replace(/\s+/g,' ')}});
   ok(!r.hid&&/GİB okuyucu/.test(r.t)&&/Hata/.test(r.t)&&/Kurgu test hatası/.test(r.t),'Masaya tıklayınca ajan paneli açılıyor (ad, durum, hata metni)',r.t.slice(0,200));
   await p.evaluate(()=>{AG.st.ag.gib.s='bekliyor';AG.st.ag.gib.err=''});
-  const c0=await p.evaluate(()=>AO.cam.position.toArray());await p.click('.ao-dep[data-ao-dep="rapor"]');await p.waitForTimeout(1600);const c1=await p.evaluate(()=>({p:AO.cam.position.toArray(),t:AO.ctl.target.toArray(),r:AO.rooms.rapor}));
+  const c0=await p.evaluate(()=>AO.cam.position.toArray());await p.click('.ao-dep[data-ao-dep="rapor"]');await p.waitForFunction(()=>!AO.fly,null,{timeout:30000});const c1=await p.evaluate(()=>({p:AO.cam.position.toArray(),t:AO.ctl.target.toArray(),r:AO.rooms.rapor}));
   ok(Math.hypot(c1.t[0]-c1.r.cx,c1.t[2]-c1.r.cz)<.5&&c1.p.join()!==c0.join(),'Departman düğmesi kamerayı o odaya götürüyor',c1);
   await (await p.$('.ao-stage')).screenshot({path:path.join(__dirname,'..','ao_3d.png')});
   await p.click('[data-ao="px"]');await p.click('[data-ao="home"]');await p.waitForTimeout(1400);await (await p.$('.ao-stage')).screenshot({path:path.join(__dirname,'..','ao_3d_home.png')});
