@@ -18,8 +18,8 @@ const APP=path.resolve(process.argv[2]||'../out55.html');const TH=path.join(__di
   await p.evaluate(()=>{localStorage.removeItem('ia-ofis-mod');showScreen('mts');MTS.tab='ag';AG.view.m='ofis';renderMts()});
   await p.waitForFunction(()=>AO.r&&AO.canvas&&AO.canvas.isConnected&&AO.on,null,{timeout:60000});await p.waitForTimeout(1500);
   let r=await p.evaluate(()=>({desks:AO.desks.length,withAg:AO.desks.filter(d=>d.ag).length,empty:AO.desks.filter(d=>!d.ag).map(d=>d.dep.k),rooms:Object.keys(AO.rooms).length,ags:AO_DEPS.flatMap(d=>d.ag).sort().join(),def:AG_DEF.map(a=>a.k).sort().join()}));
-  ok(r.rooms===9&&r.withAg===20&&r.empty.sort().join()==='hq','9 alan; 20 ajanın her biri bir masada; yalnız Yönetici masası boş (Faz 6)',r);
-  ok(r.ags===r.def,'Ofisteki ajan listesi ajan motorunun 20 ajanıyla birebir aynı',r);
+  ok(r.rooms===9&&r.withAg===21&&r.empty.length===0,'9 alan; 21 ajanın her biri bir masada (Yönetici ajan HQ odasında)',r);
+  ok(r.ags===r.def,'Ofisteki ajan listesi ajan motorunun 21 ajanıyla birebir aynı',r);
   r=await p.evaluate(()=>{AG.st.ag.gib.s='hata';AG.st.ag.gib.err='Kurgu test hatası';aoRefresh(true);const d=AO.desks.find(x=>x.ag==='gib');return {state:d.state,lamp:'#'+d.lamp.material.color.getHexString(),open:aoAg('sahis').open,real:agOpenTasks(t=>t.ag==='sahis').length}});
   ok(r.state==='hata'&&r.lamp==='#ff5a6e','Masa durumu ajan kaydından okunuyor: GİB okuyucu “hata” → kırmızı lamba',r);
   ok(r.open===r.real,'Açık görev sayısı Görevler listesiyle aynı ('+r.real+')',r);
@@ -61,11 +61,11 @@ const APP=path.resolve(process.argv[2]||'../out55.html');const TH=path.join(__di
   r=await p.evaluate(()=>{const s=performance.now();for(let i=0;i<5;i++)AO.r.render(AO.scene,AO.cam);return Math.round((performance.now()-s)/5)});console.log('    (yazılım GPU’sunda kare süresi ≈ '+r+' ms)');
   await p.click('[data-ao="mode"]');await p.waitForTimeout(500);
   r=await p.evaluate(()=>({svg:!!document.querySelector('#aoView .ao-svg'),rooms:document.querySelectorAll('.ao-svg .ao-room').length,rowsN:document.querySelectorAll('.ao-svg .ao-desk2').length,on:AO.on,pref:localStorage.getItem('ia-ofis-mod')}));
-  ok(r.svg&&r.rooms===9&&r.rowsN===20&&!r.on&&r.pref==='2d','“2D kat planı”: 9 alan, 20 ajan satırı; 3D döngü duruyor; tercih saklanıyor',r);
+  ok(r.svg&&r.rooms===9&&r.rowsN===21&&!r.on&&r.pref==='2d','“2D kat planı”: 9 alan, 21 ajan satırı; 3D döngü duruyor; tercih saklanıyor',r);
   await p.click('.ao-svg .ao-desk2[data-ao-ag="aciz"]');await p.waitForTimeout(200);ok(await p.evaluate(()=>/Aciz ajanı/.test(document.getElementById('aoPanel').textContent)),'2D planda ajana tıklayınca panel açılıyor');
   await p.click('[data-ao="mode"]');await p.waitForFunction(()=>AO.on&&AO.canvas.isConnected,null,{timeout:20000});ok(true,'Tekrar 3D’ye geçince aynı sahne yeniden bağlanıyor (yeniden yükleme yok)');
   await p.evaluate(()=>{AG.view.m='onay';renderMts()});await p.waitForTimeout(400);ok(await p.evaluate(()=>!AO.on),'Ofis sekmesinden çıkınca 3D çizim duruyor (ajanlar çalışmaya devam eder)');
-  ok(await p.evaluate(()=>typeof agCycle==='function'&&AG.st&&Object.keys(AG.st.ag).length===20),'Ajan motoru ofisten bağımsız çalışıyor');
+  ok(await p.evaluate(()=>typeof agCycle==='function'&&AG.st&&Object.keys(AG.st.ag).length===21),'Ajan motoru ofisten bağımsız çalışıyor');
   await p.setViewportSize({width:390,height:844});await p.evaluate(()=>{localStorage.removeItem('ia-ofis-mod');AG.view.m='ofis';renderMts()});await p.waitForTimeout(500);
   r=await p.evaluate(()=>({flat:!!document.querySelector('#aoView .ao-svg'),sw:document.documentElement.scrollWidth<=innerWidth+1}));ok(r.flat&&r.sw,'Telefonda otomatik 2D kat planı, taşma yok',r);
   await p.screenshot({path:path.join(__dirname,'..','ao_2d_m.png')});
