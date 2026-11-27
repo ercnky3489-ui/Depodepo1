@@ -43,6 +43,7 @@ Kurallar (yukarıdaki kurallara ek):
 - Sorguda **kişi adı, TCKN veya adres kullanma**. Yalnız `web-liste` çıktısındaki hazır sorgu (`q`) aynen kullanılır.
 - Sonuçlar föye yazılmaz; yalnız `osint_web` öneri belgeleri oluşturulur. Kullanıcı uygulamada “Onay bekleyenler › Web araması” bölümünden onaylar ya da reddeder.
 - Bu bölüm ana yazımdan bağımsızdır: yalnız yeni `osint_web` belgeleri oluşturur, hiçbir mevcut belgenin üzerine yazmaz. Ana yazım (7–8. adım) başarısız olsa bile, `research` dışa aktarımı tamamsa bu bölümü çalıştır; raporda iki sonucu ayrı yaz.
+- `web-liste` bir turda **yalnız bir kez** çalıştırılır; yazımdan sonra yeniden çalıştırıp yeni hedef arama. Tetikleyici mesajı daha düşük bir sınır verirse (ör. “en çok 5 telefon ve 3 şirket”) hedef listesini o sayıya kısalt.
 - Hedef başına en çok bir arama. Toplam arama sayısı `web-liste` çıktısındaki hedef sayısını geçmez.
 
 Adımlar:
