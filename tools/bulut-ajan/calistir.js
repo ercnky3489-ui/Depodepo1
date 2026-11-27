@@ -1,0 +1,69 @@
+/* Bulut ajanı: uygulama kapalıyken ajan turunu çalıştırır.
+   1) node calistir.js calistir <disari_aktarim_klasoru> <uygulama.html> <cikti_klasoru>
+      Dışa aktarılmış veritabanı dosyalarını (ArtifactData out_dir biçimi: <koleksiyon yolu>/<belge>.json) sahte veritabanına yükler,
+      uygulamayı “bulut modu”nda açar (yedek indirme, e-posta, brifing kapalı), bir ajan turu çalıştırır, değişen/yeni belgeleri
+      <cikti>/degisen/<yol>.json olarak ve <cikti>/ozet.json’a listeler. Hiçbir belge silinmez; silinenler yalnız raporlanır.
+   2) node calistir.js karsilastir <disari_aktarilan.json> <simdiki.json>
+      İki belge içerik olarak aynıysa 0, farklıysa 3 ile çıkar (başkası değiştirmiş mi kontrolü). */
+const fs=require('fs'),path=require('path'),http=require('http');
+const canon=v=>JSON.stringify(v,(k,x)=>x&&typeof x==='object'&&!Array.isArray(x)?Object.keys(x).sort().reduce((o,k)=>(o[k]=x[k],o),{}):x);
+function walk(dir,base=dir,out={}){for(const f of fs.readdirSync(dir)){const p=path.join(dir,f);const st=fs.statSync(p);if(st.isDirectory())walk(p,base,out);else if(f.endsWith('.json')){const rel=path.relative(base,p).split(path.sep).join('/').replace(/\.json$/,'');if(rel.split('/').length%2===0)out[rel]=JSON.parse(fs.readFileSync(p,'utf8'))}}return out}
+async function calistir(exp,app,out){const {chromium}=require('playwright');const seed=walk(exp);const n=Object.keys(seed).length;if(!n)throw new Error('Dışa aktarım klasörü boş: '+exp);
+  const html='<!doctype html><html><head><meta charset=utf8></head><body>'+fs.readFileSync(app,'utf8').replace(/^[\s\S]*?<body>/i,'').replace(/<\/body>\s*<\/html>\s*$/i,'')+'</body></html>';
+  const seedJson=JSON.stringify(seed);const srv=http.createServer((q,r)=>{if(q.url==='/__seed'){r.writeHead(200,{'content-type':'application/json'});return r.end(seedJson)}r.writeHead(200,{'content-type':'text/html; charset=utf-8'});r.end(html)}).listen(0);await new Promise(r=>srv.once('listening',r));
+  const b=await chromium.launch();const p=await b.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));
+  await p.addInitScript(()=>{window.__AO_BULUT=1;try{localStorage.setItem('ia-arastiran','Bulut ajanı')}catch(e){}});
+  await p.addInitScript({path:path.join(__dirname,'fakedb.js')});
+  await p.addInitScript(()=>{const x=new XMLHttpRequest();x.open('GET','/__seed',false);x.send();const S=JSON.parse(x.responseText);window.__seedOrig={};for(const k in S){window.__fakeDb.store.set(k,S[k]);window.__seedOrig[k]=JSON.stringify(S[k])}});
+  await p.goto('http://127.0.0.1:'+srv.address().port+'/');await p.waitForFunction(()=>typeof agCycle==='function',null,{timeout:60000});await p.waitForTimeout(3000);
+  const t0=Date.now();const res=await p.evaluate(async()=>{await agCycle('bulut');await new Promise(r=>setTimeout(r,1500));try{await agAuditFlush()}catch(e){}try{await agSaveState()}catch(e){}await new Promise(r=>setTimeout(r,2500));
+    const ags=Object.fromEntries(Object.entries(AG.st.ag).map(([k,a])=>[k,{s:a.s,note:a.note,err:a.err}]));return {ags,lastFull:AG.st.lastFull}});
+  const diff=await p.evaluate(()=>{const S=window.__fakeDb.store,O=window.__seedOrig;const ch=[],nw=[],del=[];for(const [k,v] of S){const j=JSON.stringify(v);if(!(k in O))nw.push([k,v]);else if(O[k]!==j)ch.push([k,v])}for(const k in O)if(!S.has(k))del.push(k);return {ch,nw,del,dbErr:window.__fakeDb.errors}});
+  await b.close();srv.close();
+  const canonEq=(a,b)=>canon(a)===canon(b);const ch=diff.ch.filter(([k,v])=>!canonEq(v,seed[k]));
+  fs.mkdirSync(path.join(out,'degisen'),{recursive:true});const list=[];
+  for(const [k,v] of [...ch,...diff.nw]){const f=path.join(out,'degisen',k+'.json');fs.mkdirSync(path.dirname(f),{recursive:true});fs.writeFileSync(f,JSON.stringify(v));const parts=k.split('/');list.push({yol:k,koleksiyon:parts.slice(0,-1).join('/'),belge:parts.at(-1),yeni:!(k in seed),dosya:f,disari:(k in seed)?path.join(exp,k+'.json'):null})}
+  const ozet={zaman:new Date().toISOString(),sure_sn:Math.round((Date.now()-t0)/1000),yuklenen:n,degisen:list,silinen_yazilmayacak:diff.del,ajanlar:res.ags,sayfa_hatalari:errs,db_hatalari:diff.dbErr};
+  fs.writeFileSync(path.join(out,'ozet.json'),JSON.stringify(ozet,null,1));
+  const bad=Object.entries(res.ags).filter(([k,a])=>a.s==='hata'||a.s==='erisim').map(([k,a])=>k+': '+a.err);
+  console.log(`Yüklenen belge: ${n} · değişen: ${ch.length} · yeni: ${diff.nw.length} · silinen (yazılmayacak): ${diff.del.length}`);console.log('Hatalı ajan: '+(bad.length?bad.join(' | '):'yok'));if(errs.length)console.log('Sayfa hataları: '+errs.slice(0,5).join(' | '));
+  return ozet}
+
+/* 3) node calistir.js yazim <cikti_klasoru> <simdiki_disari_aktarim> <surumler.json>
+      Değişen her belgeyi, bulut turu başladıktan sonra başkası değiştirmiş mi diye kontrol eder (dışa aktarılan ↔ şimdiki).
+      Değişmemişse ArtifactData “batch” yazımına (en çok 50 belge/paket, mevcut belgelerde if_version ile) ekler; değişmişse YAZMAZ.
+      Çıktı: <cikti>/paket_N.json (writes dizisi) ve <cikti>/yazim_ozet.json. surumler.json = {"<koleksiyon>/<belge>": <version>, …}
+   4) node calistir.js gereken <cikti_klasoru>  → sürümü gereken belge yollarını ve okunacak koleksiyonları yazar. */
+function gereken(out){const Z=JSON.parse(fs.readFileSync(path.join(out,'ozet.json'),'utf8'));const ex=Z.degisen.filter(x=>!x.yeni);const cols=[...new Set(Z.degisen.map(x=>x.koleksiyon))];return {koleksiyonlar:cols,surum_gereken:ex.map(x=>x.yol)}}
+function yazim(out,simdi,surF){const Z=JSON.parse(fs.readFileSync(path.join(out,'ozet.json'),'utf8'));const V=fs.existsSync(surF)?JSON.parse(fs.readFileSync(surF,'utf8')):{};const writes=[],cak=[],eksik=[];
+  for(const x of Z.degisen){const now=path.join(simdi,x.yol+'.json');const has=fs.existsSync(now);
+    if(x.yeni){if(has){cak.push({yol:x.yol,neden:'bu arada başka biri aynı belgeyi oluşturmuş'});continue}writes.push({op:'set',collection:x.koleksiyon,doc_id:x.belge,file_path:x.dosya});continue}
+    if(!has){cak.push({yol:x.yol,neden:'belge bu arada silinmiş'});continue}
+    if(!karsilastir(x.disari,now)){cak.push({yol:x.yol,neden:'bulut turu sırasında başka biri değiştirmiş; üzerine yazılmadı'});continue}
+    const v=V[x.yol];if(!Number.isInteger(v)){eksik.push(x.yol);continue}writes.push({op:'set',collection:x.koleksiyon,doc_id:x.belge,file_path:x.dosya,if_version:v})}
+  const files=[];for(let i=0;i<writes.length;i+=50){const f=path.join(out,'paket_'+(files.length+1)+'.json');fs.writeFileSync(f,JSON.stringify(writes.slice(i,i+50)));files.push(f)}
+  const o={yazilacak:writes.length,paketler:files,cakisma:cak,surum_eksik:eksik};fs.writeFileSync(path.join(out,'yazim_ozet.json'),JSON.stringify(o,null,1));
+  console.log(`Yazılacak: ${writes.length} belge, ${files.length} paket · çakışma (yazılmayacak): ${cak.length} · sürümü eksik: ${eksik.length}`);return o}
+
+/* 5) node calistir.js ag-liste <disari_aktarim> <bugun:YYYY-MM-DD>
+      Ajanların okuduğu “ag” belgelerinden henüz indirilmemiş olanları yazar (önce sabit liste, sonra görev/anlık görüntü/denetim parçaları).
+      Eski denetim arşivi indirilmez; yalnız denetim başlığının gösterdiği son parça gerekir. */
+function agListe(exp,day){const has=id=>fs.existsSync(path.join(exp,'ag',id+'.json'));const rd=id=>{try{return JSON.parse(fs.readFileSync(path.join(exp,'ag',id+'.json'),'utf8'))}catch(e){return null}};
+  const pids=fs.existsSync(path.join(exp,'portfolios'))?fs.readdirSync(path.join(exp,'portfolios')).filter(f=>f.endsWith('.json')).map(f=>f.slice(0,-5)):[];
+  const want=['state','dec','tasks_meta','mail','mail_cfg','media_idx','backups','backup_key','audit_head','brief_last','hist_'+day,...pids.map(p=>'snap_'+p)];
+  const tm=rd('tasks_meta');if(tm&&tm.n)for(let k=0;k<tm.n;k++)want.push('tasks_'+k);
+  pids.forEach(p=>{const m=rd('snap_'+p);if(m&&m.n)for(let k=0;k<m.n;k++)want.push('snap_'+p+'_'+k)});
+  const ah=rd('audit_head');if(ah&&ah.chunks&&ah.chunks.length)want.push(ah.chunks[ah.chunks.length-1]);
+  for(let k=0;k<5;k++){const id='hist_'+day+(k?'_'+k:'');const h=rd(id);if(h&&h.items&&h.items.length>=1200)want.push('hist_'+day+'_'+(k+1));else break}
+  const tried=new Set((fs.existsSync(path.join(exp,'.yok'))?fs.readFileSync(path.join(exp,'.yok'),'utf8').split('\n'):[]).filter(Boolean));
+  return [...new Set(want)].filter(id=>!has(id)&&!tried.has(id))}
+function karsilastir(a,b){const A=JSON.parse(fs.readFileSync(a,'utf8')),B=JSON.parse(fs.readFileSync(b,'utf8'));return canon(A)===canon(B)}
+(async()=>{const [cmd,...a]=process.argv.slice(2);
+  if(cmd==='calistir'){if(a.length<3){console.error('kullanım: calistir <disari> <uygulama.html> <cikti>');process.exit(2)}await calistir(...a);return}
+  if(cmd==='ag-liste'){console.log(JSON.stringify(agListe(a[0],a[1])));return}
+  if(cmd==='yok-isaretle'){fs.appendFileSync(path.join(a[0],'.yok'),a.slice(1).join('\n')+'\n');return}
+  if(cmd==='gereken'){console.log(JSON.stringify(gereken(a[0]),null,1));return}
+  if(cmd==='yazim'){const o=yazim(...a);process.exit(o.surum_eksik.length?4:0)}
+  if(cmd==='karsilastir'){const same=karsilastir(a[0],a[1]);console.log(same?'AYNI':'FARKLI');process.exit(same?0:3)}
+  console.error('komutlar: calistir | ag-liste | yok-isaretle | gereken | yazim | karsilastir');process.exit(2)})().catch(e=>{console.error(e);process.exit(1)});
+if(typeof module!=='undefined')module.exports={walk,canon,karsilastir};
