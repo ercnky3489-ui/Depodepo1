@@ -127,12 +127,14 @@ function geminiAra(exp,listF,outF){const L=webRd(listF)||{hedefler:[]};const A=w
   const S=[],kalan=[];let stop=0,hata=0;
   for(const h of (L.hedefler||[])){if(stop){kalan.push(h);continue}
     let r=geminiTek(model,h.q,h.kind);if(r.code===200&&!r.results.length&&h.q2)r=geminiTek(model,h.q2,h.kind);
-    if(r.code===401||r.code===403||(r.code===400&&/api key/i.test(r.err||''))){if(!S.length){console.error('Gemini: anahtar yok ya da yetkisiz ('+r.code+'). Web aramasına geçin.');fs.writeFileSync(outF,'[]');fs.writeFileSync(path.join(path.dirname(outF),'web_kalan.json'),JSON.stringify({hedefler:L.hedefler||[]}));process.exit(5)}stop=1;kalan.push(h);continue}
+    if(r.code===401||r.code===403||(r.code===400&&/api key/i.test(r.err||''))){if(!S.length){console.error('Gemini: anahtar yok ya da yetkisiz ('+r.code+'). Web aramasına geçin.');fs.writeFileSync(outF,'[]');fs.writeFileSync(path.join(path.dirname(outF),'web_kalan.json'),JSON.stringify({hedefler:(L.hedefler||[]).filter(h=>!/_r[0-9a-z]+$/.test(h.id))}));process.exit(5)}stop=1;kalan.push(h);continue}
     if(r.code===429){stop=1;kalan.push(h);continue}
     if(r.code!==200){hata++;kalan.push(h);continue}
     S.push({id:h.id,kaynak:'gemini-google',results:r.results})}
-  fs.writeFileSync(outF,JSON.stringify(S));fs.writeFileSync(path.join(path.dirname(outF),'web_kalan.json'),JSON.stringify({hedefler:kalan}));
-  console.log(`Gemini (Google): ${S.length} hedef arandı, ${S.filter(x=>x.results.length).length} sonuçlu · kalan (web aramasıyla): ${kalan.length}${hata?' · hata '+hata:''}${stop?' · kota/yetki nedeniyle durdu':''} · model ${model}`);process.exit(stop?6:0)}
+  /* Yeniden arama hedefleri (“_r” kimlikli) yalnız Google’la (Gemini) aranır: Gemini kotası / yetkisi yoksa web aramasına bırakılmaz, sonraki tura kalır. */
+  const bek=kalan.filter(h=>/_r[0-9a-z]+$/.test(h.id));const kal2=kalan.filter(h=>!/_r[0-9a-z]+$/.test(h.id));
+  fs.writeFileSync(outF,JSON.stringify(S));fs.writeFileSync(path.join(path.dirname(outF),'web_kalan.json'),JSON.stringify({hedefler:kal2,bekleyen_yeniden:bek.length}));
+  console.log(`Gemini (Google): ${S.length} hedef arandı, ${S.filter(x=>x.results.length).length} sonuçlu · kalan (web aramasıyla): ${kal2.length}${bek.length?' · yeniden arama bekliyor (Google gerekli): '+bek.length:''}${hata?' · hata '+hata:''}${stop?' · kota/yetki nedeniyle durdu':''} · model ${model}`);process.exit(stop?6:0)}
 function webYazim(exp,sonF,out){const L=webListe(exp,true);const H=new Map(L.hedefler.map(h=>[h.id,h]));const S=webRd(sonF)||[];const writes=[];let atl=0;fs.mkdirSync(out,{recursive:true});
   const tr=(s,n)=>String(s||'').replace(/\s+/g,' ').trim().slice(0,n);
   for(const s of S){const h=H.get(s.id);if(!h){atl++;continue}const res=(Array.isArray(s.results)?s.results:[]).filter(r=>r&&/^https?:\/\//.test(String(r.url||''))).slice(0,5).map(r=>({title:tr(r.title,160),url:tr(r.url,400),snippet:tr(r.snippet,320)}));
