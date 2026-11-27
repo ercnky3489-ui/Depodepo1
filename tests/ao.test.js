@@ -28,6 +28,18 @@ const APP=path.resolve(process.argv[2]||'../out55.html');const TH=path.join(__di
   ok(r.gt[0]==='tamam'&&/açık görev/.test(r.gt[1])&&['tamam','onay'].includes(r.ot[0])&&/onay bekliyor/.test(r.ot[1]),'Yeni iki ajan ajan döngüsünde gerçekten çalıştı (kayıtlı durum ve not)',r);
   ok(r.mA===r.acizTab&&r.mG===r.gorevTab&&r.mO===r.onayTab,'Masalardaki sayılar bölümlerin kendi sayılarıyla aynı (aciz '+r.mA+', görev '+r.mG+', onay '+r.mO+')',r);
   ok(r.ownTasks===0,'Yeni ajanlar görev ya da öneri üretmiyor; yalnız izliyor',r);
+  /* Faz 3: duruma bağlı poz ve rozet (60 kare simülasyonu, sabit zaman) */
+  r=await p.evaluate(()=>{const d=AO.desks.find(x=>x.ag==='sahis');const run=(s)=>{AG.st.ag.sahis.s=s;aoRefresh(true);for(let k=0;k<80;k++)aoPose(d,0,k*.05);const u=d.person.userData;return {rs:+u.sh[1].rotation.x.toFixed(2),hx:+u.head.rotation.x.toFixed(2),b:d.bdg.sp.visible}};
+    const out={onay:run('onay'),hata:run('hata'),bek:run('bekliyor')};AG.st.ag.sahis.s='calisiyor';aoRefresh(true);const u=d.person.userData;const a1=(aoPose(d,0,1.00),u.arms[1].rotation.x),a2=(aoPose(d,0,1.13),u.arms[1].rotation.x);out.typing=Math.abs(a1-a2)>.005;
+    const prev=AG.st.ag.sahis.last||0;AG.st.ag.sahis.s='tamam';AG.st.ag.sahis.last=prev+5000;aoRefresh(true);out.done=d.bdg.sp.visible;AG.st.ag.sahis.s='bekliyor';aoRefresh(true);return out});
+  ok(r.onay.rs<-2.4&&r.onay.b,'Onay bekliyor → karakter el kaldırıyor, “?” rozeti',r.onay);
+  ok(r.hata.hx>.35&&r.hata.b,'Hata → baş öne eğik, kırmızı “!” rozeti',r.hata);
+  ok(r.bek.rs>-.4&&!r.bek.b&&r.typing,'Bekliyor → arkasına yaslanır, rozet yok; Çalışıyor → klavyede yazıyor',r);
+  ok(r.done,'Yeni tamamlanan tur → kısa süreli “✓” rozeti',r.done);
+  await p.evaluate(()=>aoPanel('lvkontrol','gib'));await p.waitForFunction(()=>{const e=document.getElementById('aoAud');return e&&!/okunuyor/.test(e.textContent)},null,{timeout:15000});
+  r=await p.evaluate(()=>{const t=document.getElementById('aoPanel').textContent.replace(/\s+/g,' ');return {t:t.slice(0,600),n:document.querySelectorAll('#aoAud li').length,rows:document.querySelectorAll('#aoAud li small').length}});
+  ok(/Başarı oranı/.test(r.t)&&/Ortalama süre/.test(r.t)&&/Yetki kapsamı/.test(r.t)&&/sorgulanmadı/.test(r.t)&&/Veri aldığı: SGK okuyucu, MERSİS okuyucu, Levha okuyucu, TSG okuyucu/.test(r.t),'Profil paneli: başarı oranı, ortalama süre, yetki kapsamı, veri aldığı ajanlar',r.t.slice(0,300));
+  ok(r.n>=1&&!/denetim kaydı yok/.test(r.t),'Son 10 işlem denetim kaydından geliyor ('+r.n+' kayıt)',r);
   await p.evaluate(()=>document.querySelector('.ao-stage').scrollIntoView({block:'center'}));await p.waitForTimeout(300);
   await p.click('.ao-dep[data-ao-dep="gib"]');await p.waitForFunction(()=>!AO.fly,null,{timeout:30000});await p.waitForTimeout(300);
   const kp=await p.evaluate(()=>{const T=AO.T;const d=AO.desks.find(x=>x.ag==='gib');const rc=AO.canvas.getBoundingClientRect();const ray=new T.Raycaster();const hits=AO.desks.map(x=>x.hit);d.hit.updateWorldMatrix(true,false);
