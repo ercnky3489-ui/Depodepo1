@@ -23,4 +23,5 @@ async function run(b,APP){const html='<!doctype html><html><head><meta charset=u
   ok(JSON.stringify(K)===JSON.stringify([['AYLA','DENEME','KEMAL','Konya','01.01.1934'],['GÜL NAZ','SINAMA','MUSTAFA','Diyarbakır','01.01.1953'],['ZEYNEP','ÖRNEK','OSMAN','Erzurum','01.01.1952']]),'Kişiler: ad/soyad ayrımı, büyük harf, doğum yerinde yalnız şehir, tarih biçimi');
   const Z=N.oz.slice(1).map(r=>r.slice(-5));console.log('    Özet GİB:',JSON.stringify(Z));
   ok(Z[0][0]==='AYLA'&&Z[1][1]==='ÖRNEK'&&Z[2].every(x=>x===''),'Özet: borçlunun GİB bilgileri; şirket borçluda boş',Z);
+  {const H=N.kis[0];const di=H.indexOf('Dosya Durumu'),si=H.indexOf('Sonuç');ok(di===3&&si===4&&N.kis.slice(1).every(r=>r[di]==='Devam ediyor'),'Kişiler sayfasında “Dosya Durumu” ve “Sonuç” sütunları (borçlu bilgisinden hemen sonra)',{H:H.slice(0,6),v:N.kis.slice(1).map(r=>r[di])})}
   console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);await b.close();process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});
