@@ -21,7 +21,7 @@ const W=path.join(__dirname,'_bulut');fs.rmSync(W,{recursive:true,force:true});c
   const t=Date.now();const o=cp.spawnSync('node',[RUN,'calistir',EXP,APP,OUT],{encoding:'utf8',timeout:240000});console.log('    '+(o.stdout||'').trim().split('\n').join('\n    '));if(o.status!==0)console.log(o.stderr);
   ok(o.status===0,'Çalıştırıcı hatasız bitti ('+Math.round((Date.now()-t)/1000)+' sn)',o.stderr&&o.stderr.slice(0,300));
   const Z=JSON.parse(fs.readFileSync(path.join(OUT,'ozet.json'),'utf8'));const paths=Z.degisen.map(x=>x.yol);
-  ok(Z.ajanlar&&Object.keys(Z.ajanlar).length===19&&Object.values(Z.ajanlar).every(a=>a.s!=='hata'&&a.s!=='erisim'),'Bulutta 19 ajan çalıştı, hata yok',Z.ajanlar);
+  ok(Z.ajanlar&&Object.keys(Z.ajanlar).length===20&&Object.values(Z.ajanlar).every(a=>a.s!=='hata'&&a.s!=='erisim'),'Bulutta 20 ajan çalıştı, hata yok',Z.ajanlar);
   ok(Z.sayfa_hatalari.length===0&&Z.db_hatalari.length===0,'Sayfa ve veritabanı hatası yok',[Z.sayfa_hatalari,Z.db_hatalari]);
   ok(paths.some(x=>/^ao_tasks\/run_/.test(x))&&paths.some(x=>x.startsWith('ag/')),'Değişen kayıtlar listelendi: ajan durumu/görevler (ag) ve tur kayıtları (ao_tasks)',paths.slice(0,12));
   const tasks=paths.filter(x=>/^ag\/tasks_/.test(x));let hasNew=false;for(const t2 of tasks){const d=JSON.parse(fs.readFileSync(path.join(OUT,'degisen',t2+'.json'),'utf8'));if(JSON.stringify(d).includes('KURGU İKİ'))hasNew=true}
