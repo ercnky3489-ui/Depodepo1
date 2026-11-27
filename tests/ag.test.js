@@ -92,9 +92,9 @@ let pass=0,fail=0;const ok=(c,m,x)=>{if(c){pass++;console.log('  ✓ '+m)}else{f
   ok(r.s==='tamam'&&!r.crit&&r.v==='olumsuz','2b · GİB düzelince ajan “Tamamlandı”, kritik bayrağı kalktı',r);
   /* --- 10 · bütün ajanların işlem geçmişi denetlenebilir --- */
   r=await p.evaluate(async()=>{await agAuditFlush();const v=await agAuditVerify();const {rows}=await agAuditLoad();const ags=new Set(rows.map(e=>e.ag));
-    const miss=AG_DEF.map(a=>a.k).filter(k=>!ags.has(k));const user=rows.filter(e=>e.user).length;const err=rows.filter(e=>e.err).length;
+    const miss=AG_DEF.map(a=>a.k).filter(k=>k!=='yonetici'&&!ags.has(k));const user=rows.filter(e=>e.user).length;const err=rows.filter(e=>e.err).length;
     const okF=rows.filter(e=>e.act==='tamamlandı').every(e=>e.t0&&e.t1&&e.src&&e.task);return {v,miss,user,err,okF,n:rows.length}});
-  ok(r.v.ok&&r.miss.length===0&&r.n>20,'10 · Denetim zinciri doğrulandı ve 15 ajanın hepsinin kaydı var',r);
+  ok(r.v.ok&&r.miss.length===0&&r.n>20,'10 · Denetim zinciri doğrulandı ve tur ajanlarının hepsinin kaydı var (Yönetici ajan yalnız komutla çalışır)',r);
   ok(r.okF&&r.user>0&&r.err>0,'10 · Kayıtlarda görev kimliği, başlangıç/bitiş, kaynak, hata/tekrar ve kullanıcı onayları var',r);
   r=await p.evaluate(async()=>{const head=await AGS.get('audit_head');const c=await AGS.get(head.chunks[0]);c.e[1].to='DEĞİŞTİRİLDİ';
     if(typeof db!=='undefined'&&db)await db.doc('ag/'+head.chunks[0]).set(c);else{const o=JSON.parse(localStorage.getItem('ag-v1'));o[head.chunks[0]]=c;localStorage.setItem('ag-v1',JSON.stringify(o))}
