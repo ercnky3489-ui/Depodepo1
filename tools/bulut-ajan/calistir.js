@@ -72,13 +72,30 @@ const webRd=f=>{try{return JSON.parse(fs.readFileSync(f,'utf8'))}catch(e){return
 const webTel=s=>{const d=String(s||'').replace(/\D/g,'');return d.length>=10?d.slice(-10):''};
 const webFmt=d=>'0'+d.slice(0,3)+' '+d.slice(3,6)+' '+d.slice(6,8)+' '+d.slice(8);
 function webAyar(exp){const a=webRd(path.join(exp,'osint_web','_ayar.json'))||{};return {on:a.on===true,maxTel:Math.min(200,+a.maxTel||25),maxCo:Math.min(200,+a.maxCo||15),cx:String(a.cx||'').replace(/[^\w:-]/g,'').slice(0,80)}}
-function webListe(exp){const A=webAyar(exp);if(!A.on)return {acik:false,hedefler:[]};const rdir=path.join(exp,'research');const wdir=path.join(exp,'osint_web');const has=id=>fs.existsSync(path.join(wdir,id+'.json'));
-  const T=new Map(),C=[];
+/* Daha önce sorgulanan hiçbir hedef yeniden aranmaz:
+   - telefon: numara (son 10 hane) bir kez; föyde “sorgulandı” (gs) ya da osint_web’de herhangi bir belgesi (onay / eklendi / red / sonuç yok) varsa atlanır.
+   - şirket: VKN varsa VKN’ye, yoksa sadeleştirilmiş ünvana göre tek hedef (tüm föyler tek öneride); osint_web’de aynı VKN / ünvanla belge varsa
+     (eski föy bazlı kimlikler dahil) ya da föylerden birinde Google notu varsa atlanır. */
+const WEB_STOP=new Set(['LTD','LİMİTED','ŞTİ','ŞİRKETİ','A','Ş','AŞ','ANONİM','TİC','TİCARET','SAN','SANAYİ','VE','İTH','İHR']);
+const webUn=s=>String(s||'').toLocaleUpperCase('tr').replace(/[^0-9A-ZÇĞİÖŞÜ]+/g,' ').split(' ').filter(w=>w&&!WEB_STOP.has(w)).join(' ');
+const webVkn=s=>{const v=String(s||'').replace(/\D/g,'');return v.length===10?v:''};
+const webH=s=>require('crypto').createHash('sha1').update(s).digest('hex').slice(0,12);
+function webSorgulanan(wdir){const tel=new Set(),co=new Set();if(!fs.existsSync(wdir))return {tel,co};
+  for(const f of fs.readdirSync(wdir).filter(f=>f.endsWith('.json')&&f!=='_ayar.json')){let d=webRd(path.join(wdir,f));if(!d)continue;if(d.data&&!d.kind)d=d.data;
+    if(d.kind==='tel'||/^tel_/.test(f)){const t=webTel(d.tel||f.slice(4,-5));if(t)tel.add(t)}
+    else{const v=webVkn(d.vkn)||((String(d.q||'').match(/"(\d{10})"/)||[])[1]||'');if(v)co.add('v'+v);const u=webUn(d.unvan);if(u)co.add('u'+u)}}
+  return {tel,co}}
+function webListe(exp){const A=webAyar(exp);if(!A.on)return {acik:false,hedefler:[]};const rdir=path.join(exp,'research');const wdir=path.join(exp,'osint_web');
+  const Q=webSorgulanan(wdir);const T=new Map(),C=new Map(),notlu=new Set();
   if(fs.existsSync(rdir))for(const f of fs.readdirSync(rdir).filter(f=>f.endsWith('.json')).sort()){const R=webRd(path.join(rdir,f));if(!R||!R.pid)continue;
-    (R.persons||[]).forEach(p=>(p.telefonlar||[]).forEach(t=>{const d=webTel(t.tel);if(!d||t.gs)return;const id='tel_'+d;if(has(id))return;if(!T.has(id))T.set(id,{id,kind:'tel',q:'"'+webFmt(d)+'" OR "0'+d+'"',tel:d,refs:[]});T.get(id).refs.push({pid:R.pid,i:R.idx,entId:p.id||'',tid:t.id||''})}));
-    (R.companies||[]).forEach(c=>{const un=String(c.unvan||'').trim();if(un.length<3)return;const g=c.src&&c.src.google;if(g&&(g.s||String(g.n||'').trim()))return;const id='co_'+R.pid+'--'+R.idx+'--'+String(c.id||'').replace(/[^\w-]/g,'');if(has(id))return;
-      const v=String(c.vkn||'').replace(/\D/g,'');C.push({id,kind:'sirket',q:'"'+un.replace(/"/g,'')+'"'+(v.length===10?' OR "'+v+'"':''),unvan:un,refs:[{pid:R.pid,i:R.idx,entId:c.id||''}]})})}
-  return {acik:true,cx:A.cx,hedefler:[...[...T.values()].slice(0,A.maxTel),...C.slice(0,A.maxCo)]}}
+    (R.persons||[]).forEach(p=>(p.telefonlar||[]).forEach(t=>{const d=webTel(t.tel);if(!d)return;if(t.gs){Q.tel.add(d);return}if(Q.tel.has(d))return;const id='tel_'+d;if(!T.has(id))T.set(id,{id,kind:'tel',q:'"'+webFmt(d)+'" OR "0'+d+'"',tel:d,refs:[]});T.get(id).refs.push({pid:R.pid,i:R.idx,entId:p.id||'',tid:t.id||''})}));
+    (R.companies||[]).forEach(c=>{const un=String(c.unvan||'').trim();if(un.length<3)return;const v=webVkn(c.vkn),u=webUn(un);const key=v?'v'+v:'u'+u;if(!u&&!v)return;
+      const g=c.src&&c.src.google;if(g&&(g.s||String(g.n||'').trim())){notlu.add(key);if(u)notlu.add('u'+u);return}
+      if(!C.has(key))C.set(key,{id:'co_'+(v?'v'+v:'u'+webH(u)),kind:'sirket',q:'"'+un.replace(/"/g,'')+'"'+(v?' OR "'+v+'"':''),unvan:un,vkn:v,_k:[key,'u'+u],refs:[]});
+      C.get(key).refs.push({pid:R.pid,i:R.idx,entId:c.id||''})})}
+  for(const t of [...T.values()])if(Q.tel.has(t.tel))T.delete(t.id);
+  const cos=[...C.values()].filter(c=>!c._k.some(k=>Q.co.has(k)||notlu.has(k))&&!fs.existsSync(path.join(wdir,c.id+'.json'))).map(c=>{const o=Object.assign({},c);delete o._k;return o});
+  return {acik:true,cx:A.cx,hedefler:[...[...T.values()].slice(0,A.maxTel),...cos.slice(0,A.maxCo)]}}
 function webYazim(exp,sonF,out){const L=webListe(exp);const H=new Map(L.hedefler.map(h=>[h.id,h]));const S=webRd(sonF)||[];const writes=[];let atl=0;fs.mkdirSync(out,{recursive:true});
   const tr=(s,n)=>String(s||'').replace(/\s+/g,' ').trim().slice(0,n);
   for(const s of S){const h=H.get(s.id);if(!h){atl++;continue}const res=(Array.isArray(s.results)?s.results:[]).filter(r=>r&&/^https?:\/\//.test(String(r.url||''))).slice(0,5).map(r=>({title:tr(r.title,160),url:tr(r.url,400),snippet:tr(r.snippet,320)}));
