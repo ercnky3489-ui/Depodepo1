@@ -71,7 +71,7 @@ function karsilastir(a,b){const A=JSON.parse(fs.readFileSync(a,'utf8')),B=JSON.p
 const webRd=f=>{try{return JSON.parse(fs.readFileSync(f,'utf8'))}catch(e){return null}};
 const webTel=s=>{const d=String(s||'').replace(/\D/g,'');return d.length>=10?d.slice(-10):''};
 const webFmt=d=>'0'+d.slice(0,3)+' '+d.slice(3,6)+' '+d.slice(6,8)+' '+d.slice(8);
-function webAyar(exp){const a=webRd(path.join(exp,'osint_web','_ayar.json'))||{};return {on:a.on===true,maxTel:Math.min(200,+a.maxTel||25),maxCo:Math.min(200,+a.maxCo||15),cx:String(a.cx||'').replace(/[^\w:-]/g,'').slice(0,80)}}
+function webAyar(exp){const a=webRd(path.join(exp,'osint_web','_ayar.json'))||{};return {on:a.on===true,maxTel:Math.min(200,+a.maxTel||25),maxCo:Math.min(200,+a.maxCo||15),cx:String(a.cx||'').replace(/[^\w:-]/g,'').slice(0,80),model:String(a.model||'').replace(/[^\w.-]/g,'').slice(0,60)}}
 /* Daha önce sorgulanan hiçbir hedef yeniden aranmaz:
    - telefon: numara (son 10 hane) bir kez; föyde “sorgulandı” (gs) ya da osint_web’de herhangi bir belgesi (onay / eklendi / red / sonuç yok) varsa atlanır.
    - şirket: VKN varsa VKN’ye, yoksa sadeleştirilmiş ünvana göre tek hedef (tüm föyler tek öneride); osint_web’de aynı VKN / ünvanla belge varsa
@@ -110,10 +110,33 @@ function webListe(exp){const A=webAyar(exp);if(!A.on)return {acik:false,hedefler
   for(const [id,t] of [...T.entries()])if(Q.tel.has(t.tel))T.delete(id);
   const cos=[...C.values()].filter(c=>!c._k.some(k=>Q.co.has(k)||notlu.has(k))&&!fs.existsSync(path.join(wdir,c.id+'.json'))).map(c=>{const o=Object.assign({},c);delete o._k;return o});
   return {acik:true,cx:A.cx,hedefler:[...[...T.values()].slice(0,A.maxTel),...cos.slice(0,A.maxCo)]}}
+/* Gemini + Google Search temellendirme: arama Google’da yapılır, yalnız Gemini’nin döndürdüğü gerçek kaynak sayfaları (groundingChunks) alınır.
+   Anahtar kodda / veritabanında yok: istek başlığındaki “anahtar” yer tutucudur, ağ vekili gerçek anahtarı ekler (ortam › Network secrets).
+   node calistir.js gemini-ara <disari_aktarim> <web_liste.json> <web_sonuc.json>  → çıkış 0 tamam · 5 anahtar yok/yetkisiz (hiç arama yok) · 6 kota (kalanlar web_kalan.json) */
+function geminiTek(model,q,kind){const url=(process.env.GEMINI_URL||'https://generativelanguage.googleapis.com')+'/v1beta/models/'+encodeURIComponent(model)+':generateContent';
+  const prompt='Google’da tam olarak şunu ara: '+q+'\nTürkiye’deki sonuçlara bak. Bulduğun sayfalarda bu '+(kind==='tel'?'telefon numarasının':'şirketin')+' nasıl geçtiğini sayfa başına bir kısa cümleyle yaz. Hiçbir sayfa bulamazsan yalnız “SONUÇ YOK” yaz. Tahmin etme, sayfada olmayan bilgi ekleme.';
+  const body=JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],tools:[{google_search:{}}],generationConfig:{temperature:0}});
+  let out;try{out=require('child_process').execFileSync('curl',['-sS','-m','60','-o','-','-w','\n%{http_code}','-H','content-type: application/json','-H','x-goog-api-key: anahtar','--data-binary','@-',url],{input:body,encoding:'utf8',maxBuffer:8<<20})}catch(e){return {code:0,err:String(e.message||e).slice(0,200)}}
+  const i=out.lastIndexOf('\n');const code=parseInt(out.slice(i+1))||0;let J=null;try{J=JSON.parse(out.slice(0,i))}catch(e){}
+  if(code!==200||!J)return {code,err:J&&J.error&&J.error.message?String(J.error.message).slice(0,200):'yanıt okunamadı'};
+  const c=(J.candidates||[])[0]||{};const gm=c.groundingMetadata||{};const ch=gm.groundingChunks||[];const txt=((c.content||{}).parts||[]).map(p=>p.text||'').join(' ').trim();
+  if(/^SONUÇ YOK/i.test(txt)||!ch.length)return {code,results:[]};
+  const sn=ch.map(()=>[]);(gm.groundingSupports||[]).forEach(s=>{const t=String((s.segment||{}).text||'').trim();(s.groundingChunkIndices||[]).forEach(k=>{if(sn[k]&&t&&!sn[k].includes(t))sn[k].push(t)})});
+  const res=ch.map((x,k)=>({title:String((x.web||{}).title||''),url:String((x.web||{}).uri||''),snippet:sn[k].join(' ')})).filter(r=>/^https:\/\//.test(r.url)).slice(0,5);return {code,results:res}}
+function geminiAra(exp,listF,outF){const L=webRd(listF)||{hedefler:[]};const A=webAyar(exp);const model=String(A.model||process.env.GEMINI_MODEL||'gemini-flash-latest').replace(/[^\w.-]/g,'');
+  const S=[],kalan=[];let stop=0,hata=0;
+  for(const h of (L.hedefler||[])){if(stop){kalan.push(h);continue}
+    let r=geminiTek(model,h.q,h.kind);if(r.code===200&&!r.results.length&&h.q2)r=geminiTek(model,h.q2,h.kind);
+    if(r.code===401||r.code===403||(r.code===400&&/api key/i.test(r.err||''))){if(!S.length){console.error('Gemini: anahtar yok ya da yetkisiz ('+r.code+'). Web aramasına geçin.');fs.writeFileSync(outF,'[]');fs.writeFileSync(path.join(path.dirname(outF),'web_kalan.json'),JSON.stringify({hedefler:L.hedefler||[]}));process.exit(5)}stop=1;kalan.push(h);continue}
+    if(r.code===429){stop=1;kalan.push(h);continue}
+    if(r.code!==200){hata++;kalan.push(h);continue}
+    S.push({id:h.id,kaynak:'gemini-google',results:r.results})}
+  fs.writeFileSync(outF,JSON.stringify(S));fs.writeFileSync(path.join(path.dirname(outF),'web_kalan.json'),JSON.stringify({hedefler:kalan}));
+  console.log(`Gemini (Google): ${S.length} hedef arandı, ${S.filter(x=>x.results.length).length} sonuçlu · kalan (web aramasıyla): ${kalan.length}${hata?' · hata '+hata:''}${stop?' · kota/yetki nedeniyle durdu':''} · model ${model}`);process.exit(stop?6:0)}
 function webYazim(exp,sonF,out){const L=webListe(exp);const H=new Map(L.hedefler.map(h=>[h.id,h]));const S=webRd(sonF)||[];const writes=[];let atl=0;fs.mkdirSync(out,{recursive:true});
   const tr=(s,n)=>String(s||'').replace(/\s+/g,' ').trim().slice(0,n);
   for(const s of S){const h=H.get(s.id);if(!h){atl++;continue}const res=(Array.isArray(s.results)?s.results:[]).filter(r=>r&&/^https?:\/\//.test(String(r.url||''))).slice(0,5).map(r=>({title:tr(r.title,160),url:tr(r.url,400),snippet:tr(r.snippet,320)}));
-    const doc=Object.assign({},h,{results:res,kaynak:s.kaynak==='google-api'?'google-api':'websearch',t:Date.now(),status:res.length?'onay':'sonuc-yok'});const f=path.join(out,'web_'+h.id+'.json');fs.writeFileSync(f,JSON.stringify(doc));writes.push({op:'set',collection:'osint_web',doc_id:h.id,file_path:f})}
+    const doc=Object.assign({},h,{results:res,kaynak:['google-api','gemini-google'].includes(s.kaynak)?s.kaynak:'websearch',t:Date.now(),status:res.length?'onay':'sonuc-yok'});const f=path.join(out,'web_'+h.id+'.json');fs.writeFileSync(f,JSON.stringify(doc));writes.push({op:'set',collection:'osint_web',doc_id:h.id,file_path:f})}
   const files=paketle(writes,out,'web_paket_');
   const o={yazilacak:writes.length,paketler:files,atlanan:atl};console.log(`Web araması: ${writes.length} öneri belgesi, ${files.length} paket · listede olmayan (atlandı): ${atl}`);return o}
 (async()=>{const [cmd,...a]=process.argv.slice(2);
@@ -124,6 +147,7 @@ function webYazim(exp,sonF,out){const L=webListe(exp);const H=new Map(L.hedefler
   if(cmd==='yazim'){const o=yazim(...a);process.exit(o.surum_eksik.length?4:0)}
   if(cmd==='web-liste'){console.log(JSON.stringify(webListe(a[0]),null,1));return}
   if(cmd==='web-yazim'){webYazim(...a);return}
+  if(cmd==='gemini-ara'){geminiAra(...a);return}
   if(cmd==='karsilastir'){const same=karsilastir(a[0],a[1]);console.log(same?'AYNI':'FARKLI');process.exit(same?0:3)}
-  console.error('komutlar: calistir | ag-liste | yok-isaretle | gereken | yazim | karsilastir');process.exit(2)})().catch(e=>{console.error(e);process.exit(1)});
+  console.error('komutlar: calistir | ag-liste | yok-isaretle | gereken | yazim | karsilastir | web-liste | gemini-ara | web-yazim');process.exit(2)})().catch(e=>{console.error(e);process.exit(1)});
 if(typeof module!=='undefined')module.exports={walk,canon,karsilastir};

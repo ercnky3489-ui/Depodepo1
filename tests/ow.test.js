@@ -21,6 +21,21 @@ const R1={pid:'pK',idx:1,durum:'',persons:[{id:'p1',ad:'KURGU İKİ',kimlik:'300
   ok(D['tel_5321112233'].status==='onay'&&D['tel_5321112233'].results.length===1&&D['co_v1234567890'].status==='sonuc-yok'&&D['co_v1234567890'].kaynak==='google-api'&&D['tel2_5559990011'].qv===2&&D['tel2_5559990011'].q2,'Sonuçlar öneri olarak bekliyor; güvensiz bağlantı atıldı; sonuç çıkmayan şirket “sonuç yok”',D);
   for(const w of P)fs.copyFileSync(w.file_path,path.join(EXP,'osint_web',w.doc_id+'.json'));
   L=JSON.parse(run('web-liste',EXP));ok(!L.hedefler.length,'Sorgulanan tekrar sorgulanmıyor: yazımdan sonra liste boş (sonuç çıkmayanlar dahil)',L.hedefler.map(h=>h.id));
+  /* Gemini (Google arama) — sahte Gemini sunucusu ayrı süreçte (çalıştırıcı eşzamanlı curl kullanır): anahtar yer tutucu, gerçek kaynaklar alınır, “SONUÇ YOK” → boş, 401 → web aramasına geçiş */
+  {const LOG=path.join(W,'gseen.jsonl'),F401=path.join(W,'g401');
+    const SRV=`const http=require('http'),fs=require('fs');http.createServer((q,r)=>{let b='';q.on('data',d=>b+=d).on('end',()=>{const J=JSON.parse(b);const t=J.contents[0].parts[0].text;fs.appendFileSync(${JSON.stringify(LOG)},JSON.stringify({key:q.headers['x-goog-api-key'],t,tools:J.tools})+'\\n');
+      if(fs.existsSync(${JSON.stringify(F401)})){r.writeHead(401);r.end('{"error":{"message":"API key not valid"}}');return}
+      const found=/Kurgu/.test(t);r.writeHead(200,{'content-type':'application/json'});
+      r.end(JSON.stringify({candidates:[{content:{parts:[{text:found?'Kurgu Lojistik firma rehberinde geçiyor.':'SONUÇ YOK'}]},groundingMetadata:found?{groundingChunks:[{web:{uri:'https://vertexaisearch.cloud.google.com/grounding-api-redirect/abc',title:'firmarehberi.com.tr'}},{web:{uri:'javascript:alert(1)',title:'kötü'}}],groundingSupports:[{segment:{text:'Kurgu Lojistik firma rehberinde geçiyor.'},groundingChunkIndices:[0]}]}:{}}]}))})}).listen(0,function(){console.log(this.address().port)})`;
+    const gp=cp.spawn('node',['-e',SRV]);const port=await new Promise(r=>gp.stdout.once('data',d=>r(String(d).trim())));
+    const LF=path.join(W,'gl.json');fs.writeFileSync(LF,JSON.stringify({hedefler:[{id:'co_vX',kind:'sirket',q:'"Kurgu" lojistik',q2:'"1234567890"'},{id:'tel_5550000000',kind:'tel',q:'"0555 000 00 00"',q2:'"05550000000"'}]}));
+    const env=Object.assign({},process.env,{GEMINI_URL:'http://127.0.0.1:'+port});const OF=path.join(W,'gs.json');
+    const g=cp.spawnSync('node',[RUN,'gemini-ara',EXP,LF,OF],{env,encoding:'utf8',timeout:30000});let G=[];try{G=JSON.parse(fs.readFileSync(OF,'utf8'))}catch(e){}
+    ok(g.status===0&&G.length===2&&G[0].kaynak==='gemini-google'&&G[0].results.length===1&&/^https:/.test(G[0].results[0].url)&&/firma rehberinde/.test(G[0].results[0].snippet)&&!G[1].results.length,'Gemini: Google arama kaynakları alınıyor (güvensiz bağlantı atıldı), “SONUÇ YOK” → sonuç yok',{st:g.status,G,err:g.stderr});
+    const seen=fs.readFileSync(LOG,'utf8').trim().split('\n').map(JSON.parse);
+    ok(seen.every(x=>x.key==='anahtar'&&x.tools&&x.tools[0].google_search)&&seen.length===3&&/05550000000/.test(seen[2].t)&&!/KURGU BİR|30000000001/.test(seen.map(x=>x.t).join()),'Gemini isteği: Google Search aracı açık, anahtar yer tutucu (gerçeği vekil ekler), boş çıkan numara ikinci biçimle arandı, kişi adı / TCKN gönderilmedi',seen.map(x=>x.t.slice(0,50)));
+    fs.writeFileSync(F401,'1');const g2=cp.spawnSync('node',[RUN,'gemini-ara',EXP,LF,OF],{env,encoding:'utf8',timeout:30000});const K=JSON.parse(fs.readFileSync(path.join(W,'web_kalan.json'),'utf8'));
+    ok(g2.status===5&&K.hedefler.length===2,'Anahtar yoksa / yetkisizse çıkış 5: tüm hedefler web aramasına bırakılıyor',{st:g2.status,n:K.hedefler.length});gp.kill()}
   /* uygulama */
   const html='<!doctype html><html><head><meta charset=utf8></head><body>'+fs.readFileSync(APP,'utf8')+'</body></html>';
   const srv=http.createServer((q,r)=>{r.writeHead(200,{'content-type':'text/html; charset=utf-8'});r.end(html)}).listen(0);await new Promise(r=>srv.once('listening',r));
