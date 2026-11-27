@@ -1,0 +1,44 @@
+/* Web araması (OSINT): bulut çalıştırıcısı (web-liste / web-yazim) + uygulamadaki onay bölümü — kurgusal veri. node ow.test.js <app.html> */
+const {chromium}=require('playwright');const fs=require('fs'),path=require('path'),http=require('http'),cp=require('child_process');
+const APP=path.resolve(process.argv[2]||'../out55.html');let pass=0,fail=0;const ok=(c,m,x)=>{if(c){pass++;console.log('  ✓ '+m)}else{fail++;console.log('  ✗ '+m+(x!==undefined?' → '+JSON.stringify(x).slice(0,600):''))}};
+const RUN=path.join(__dirname,'..','tools','bulut-ajan','calistir.js');const W=path.join(__dirname,'_ow');fs.rmSync(W,{recursive:true,force:true});
+const wj=(p,o)=>{fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p,JSON.stringify(o))};const run=(...a)=>cp.execFileSync('node',[RUN,...a],{encoding:'utf8'});
+const R0={pid:'pK',idx:0,durum:'devam',persons:[{id:'p0',ad:'KURGU BİR',kimlik:'30000000001',rol:'Borçlu',src:{},levhalar:[],telefonlar:[{id:'t1',tel:'0532 111 22 33'},{id:'t2',tel:'05009998877',gs:1795000000000}]}],companies:[{id:'c1',unvan:'KURGU LOJİSTİK LTD ŞTİ',vkn:'1234567890',src:{}},{id:'c2',unvan:'NOTLU A.Ş.',src:{google:{s:'var',n:'not var'}}}]};
+const R1={pid:'pK',idx:1,durum:'',persons:[{id:'p1',ad:'KURGU İKİ',kimlik:'30000000002',rol:'Kefil',src:{},levhalar:[],telefonlar:[{id:'t3',tel:'+90 532 111 2233'},{id:'t4',tel:'0555 444 33 22'}]}],companies:[]};
+(async()=>{
+  const EXP=path.join(W,'export');wj(path.join(EXP,'research','pK--0.json'),R0);wj(path.join(EXP,'research','pK--1.json'),R1);
+  let L=JSON.parse(run('web-liste',EXP));ok(L.acik===false&&!L.hedefler.length,'Ayar yoksa web araması kapalı: hiç hedef çıkmıyor',L);
+  wj(path.join(EXP,'osint_web','_ayar.json'),{on:true,maxTel:10,maxCo:10,cx:'abc123:xyz'});wj(path.join(EXP,'osint_web','tel_5554443322.json'),{status:'onay'});
+  L=JSON.parse(run('web-liste',EXP));const ids=L.hedefler.map(h=>h.id).sort();
+  ok(JSON.stringify(ids)===JSON.stringify(['co_pK--0--c1','tel_5321112233']),'Hedefler: sorgulanmamış telefon (iki föyde aynı numara tek hedef) + Google notu olmayan şirket; aranmış / zaten önerilmiş olanlar atlanıyor',ids);
+  const T=L.hedefler.find(h=>h.kind==='tel'),C=L.hedefler.find(h=>h.kind==='sirket');
+  ok(T.refs.length===2&&T.q==='"0532 111 22 33" OR "05321112233"'&&!/KURGU/.test(T.q),'Telefon sorgusu yalnız numara (kişi adı yok); iki föy referansı',T);
+  ok(C.q==='"KURGU LOJİSTİK LTD ŞTİ" OR "1234567890"'&&L.cx==='abc123:xyz','Şirket sorgusu ünvan + VKN; Google arama motoru kimliği aktarılıyor',{q:C.q,cx:L.cx});
+  wj(path.join(W,'sonuc.json'),[{id:'tel_5321112233',kaynak:'websearch',results:[{title:'Kurgu Lokantası iletişim',url:'https://ornek.com.tr/iletisim',snippet:'Telefon 0532 111 22 33'},{title:'kötü',url:'javascript:alert(1)'}]},{id:'co_pK--0--c1',kaynak:'google-api',results:[]},{id:'baska',results:[{title:'x',url:'https://x'}]}]);
+  run('web-yazim',EXP,path.join(W,'sonuc.json'),path.join(W,'web'));const P=JSON.parse(fs.readFileSync(path.join(W,'web','web_paket_1.json'),'utf8'));
+  const D=Object.fromEntries(P.map(w=>[w.doc_id,JSON.parse(fs.readFileSync(w.file_path,'utf8'))]));
+  ok(P.length===2&&P.every(w=>w.op==='set'&&w.collection==='osint_web'&&!w.if_version),'Yazım paketi: yalnız yeni osint_web belgeleri (listede olmayan hedef atlandı)',P.map(w=>w.doc_id));
+  ok(D['tel_5321112233'].status==='onay'&&D['tel_5321112233'].results.length===1&&D['co_pK--0--c1'].status==='sonuc-yok'&&D['co_pK--0--c1'].kaynak==='google-api','Sonuçlar öneri olarak bekliyor; güvensiz bağlantı atıldı; sonuç çıkmayan şirket “sonuç yok”',D);
+  /* uygulama */
+  const html='<!doctype html><html><head><meta charset=utf8></head><body>'+fs.readFileSync(APP,'utf8')+'</body></html>';
+  const srv=http.createServer((q,r)=>{r.writeHead(200,{'content-type':'text/html; charset=utf-8'});r.end(html)}).listen(0);await new Promise(r=>srv.once('listening',r));
+  const b=await chromium.launch();const p=await b.newPage({viewport:{width:1400,height:950}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+  await p.route(/cdn\.jsdelivr\.net|fonts\.|cdnjs/,r=>r.abort());await p.addInitScript({path:path.join(__dirname,'fakedb.js')});await p.addInitScript(()=>localStorage.setItem('ia-arastiran','Kurgu Ercan'));
+  await p.goto('http://127.0.0.1:'+srv.address().port+'/');await p.waitForTimeout(1800);
+  await p.evaluate(async({R0,R1,D})=>{await Store.savePortfolio('pK',{name:'Kurgu Ow',importedAt:'2026-11-01T10:00:00Z',count:2},[{i:0,ad:'KURGU BİR',kimlik:'30000000001',sirket:false,m:'',kef:[],x:{}},{i:1,ad:'KURGU İKİ',kimlik:'30000000002',sirket:false,m:'',kef:[],x:{}}]);
+    await Store.saveResearch(R0);await Store.saveResearch(R1);const db2=await window.claude.use('db');for(const [k,v] of Object.entries(D))await db2.doc('osint_web/'+k).set(v);
+    await db2.doc('osint_web/co_x').set({id:'co_x',kind:'sirket',unvan:'BAŞKA LTD',q:'"BAŞKA LTD"',refs:[{pid:'pK',i:0,entId:'c1'}],results:[{title:'Başka',url:'https://baska.example',snippet:''}],kaynak:'websearch',t:Date.now(),status:'onay'})},{R0,R1,D});
+  await p.waitForTimeout(800);await p.evaluate(async()=>{document.querySelectorAll('.modal-bg').forEach(x=>x.remove());await openPortfolio('pK');showScreen('mts');MTS.tab='ag';AG.view.m='onay';renderMts()});
+  await p.waitForFunction(()=>OW.loaded&&document.querySelector('.ow-set'),null,{timeout:15000});await p.evaluate(()=>renderMts());await p.waitForTimeout(400);
+  let r=await p.evaluate(()=>({items:document.querySelectorAll('.ow-it').length,old:/Bulgu yayılımı/.test(document.querySelector('.ag-body').textContent),badge:(document.querySelector('[data-ag-m="onay"] .ag-n')||{}).textContent,tog:document.querySelector('[data-ow="tog"]').textContent}));
+  ok(r.items===2&&r.old&&r.badge==='2'&&/kapalı/.test(r.tog),'Onay bekleyenlerde “Web araması” bölümü: 2 öneri, sayaç, mevcut bölümler duruyor, varsayılan kapalı',r);
+  await p.click('[data-ow="tog"]');await p.waitForTimeout(500);r=await p.evaluate(async()=>{const d=await (await window.claude.use('db')).doc('osint_web/_ayar').get();return d.data()});ok(r&&r.on===true&&r.by==='Kurgu Ercan','Aç/kapat düğmesi ayarı veritabanına yazıyor (bulut ajanı buna bakar)',r);
+  await p.fill('[data-owf="cx"]','abc123:xyz');await p.dispatchEvent('[data-owf="cx"]','change');await p.waitForTimeout(400);ok(await p.evaluate(async()=>(await (await window.claude.use('db')).doc('osint_web/_ayar').get()).data().cx==='abc123:xyz'),'Google arama motoru kimliği (cx) kaydediliyor');
+  await p.click('.ow-it:has-text("0532") [data-ow="ok"]');await p.waitForTimeout(800);
+  r=await p.evaluate(async()=>{const a=getR(0).persons[0].telefonlar[0];const b2=getR(1).persons[0].telefonlar[0];const d=(await (await window.claude.use('db')).doc('osint_web/tel_5321112233').get()).data();return {a:a.gres,gs:!!a.gs,b:b2.gres,st:d.status,by:d.by}});
+  ok(/Web araması .*Kurgu Lokantası iletişim — https:\/\/ornek\.com\.tr\/iletisim/.test(r.a)&&r.gs&&/Kurgu Lokantası/.test(r.b),'“Föye ekle”: sonuç iki föydeki aynı numaranın Google sonucuna kaynağıyla yazıldı, numara “sorgulandı” oldu',r);
+  ok(r.st==='eklendi'&&r.by==='Kurgu Ercan','Öneri “föye eklendi” olarak işaretlendi (kim ekledi)',r);
+  await p.click('.ow-it:has-text("BAŞKA") [data-ow="red"]');await p.waitForTimeout(500);
+  r=await p.evaluate(async()=>({st:(await (await window.claude.use('db')).doc('osint_web/co_x').get()).data().status,g:JSON.stringify(getR(0).companies[0].src||{}),left:document.querySelectorAll('.ow-it').length}));
+  ok(r.st==='red'&&!/BAŞKA|Başka/.test(r.g)&&r.left===0,'“Reddet”: föye hiçbir şey yazılmadı, öneri reddedildi',r);
+  ok(!errs.length,'Sayfa hatası yok',errs);console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);fs.rmSync(W,{recursive:true,force:true});await b.close();srv.close();process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});

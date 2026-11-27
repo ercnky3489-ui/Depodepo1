@@ -58,12 +58,36 @@ function agListe(exp,day){const has=id=>fs.existsSync(path.join(exp,'ag',id+'.js
   const tried=new Set((fs.existsSync(path.join(exp,'.yok'))?fs.readFileSync(path.join(exp,'.yok'),'utf8').split('\n'):[]).filter(Boolean));
   return [...new Set(want)].filter(id=>!has(id)&&!tried.has(id))}
 function karsilastir(a,b){const A=JSON.parse(fs.readFileSync(a,'utf8')),B=JSON.parse(fs.readFileSync(b,'utf8'));return canon(A)===canon(B)}
+
+/* 6) Web araması (OSINT) — yalnız kullanıcı “osint_web/_ayar” belgesinde açtıysa.
+   node calistir.js web-liste <disari_aktarim>            → aranacak hedefler (JSON): sorgulanmamış telefonlar ve Google notu olmayan şirketler
+   node calistir.js web-yazim <disari_aktarim> <sonuclar.json> <cikti>  → osint_web/<id> öneri belgeleri için yazım paketleri (yalnız yeni belge)
+   Sorguda kişi adı kullanılmaz: telefon için yalnız numara, şirket için ünvan (+VKN). Sonuçlar föye yazılmaz; uygulamada “Onay bekleyenler”de onaylanır. */
+const webRd=f=>{try{return JSON.parse(fs.readFileSync(f,'utf8'))}catch(e){return null}};
+const webTel=s=>{const d=String(s||'').replace(/\D/g,'');return d.length>=10?d.slice(-10):''};
+const webFmt=d=>'0'+d.slice(0,3)+' '+d.slice(3,6)+' '+d.slice(6,8)+' '+d.slice(8);
+function webAyar(exp){const a=webRd(path.join(exp,'osint_web','_ayar.json'))||{};return {on:a.on===true,maxTel:Math.min(200,+a.maxTel||25),maxCo:Math.min(200,+a.maxCo||15),cx:String(a.cx||'').replace(/[^\w:-]/g,'').slice(0,80)}}
+function webListe(exp){const A=webAyar(exp);if(!A.on)return {acik:false,hedefler:[]};const rdir=path.join(exp,'research');const wdir=path.join(exp,'osint_web');const has=id=>fs.existsSync(path.join(wdir,id+'.json'));
+  const T=new Map(),C=[];
+  if(fs.existsSync(rdir))for(const f of fs.readdirSync(rdir).filter(f=>f.endsWith('.json')).sort()){const R=webRd(path.join(rdir,f));if(!R||!R.pid)continue;
+    (R.persons||[]).forEach(p=>(p.telefonlar||[]).forEach(t=>{const d=webTel(t.tel);if(!d||t.gs)return;const id='tel_'+d;if(has(id))return;if(!T.has(id))T.set(id,{id,kind:'tel',q:'"'+webFmt(d)+'" OR "0'+d+'"',tel:d,refs:[]});T.get(id).refs.push({pid:R.pid,i:R.idx,entId:p.id||'',tid:t.id||''})}));
+    (R.companies||[]).forEach(c=>{const un=String(c.unvan||'').trim();if(un.length<3)return;const g=c.src&&c.src.google;if(g&&(g.s||String(g.n||'').trim()))return;const id='co_'+R.pid+'--'+R.idx+'--'+String(c.id||'').replace(/[^\w-]/g,'');if(has(id))return;
+      const v=String(c.vkn||'').replace(/\D/g,'');C.push({id,kind:'sirket',q:'"'+un.replace(/"/g,'')+'"'+(v.length===10?' OR "'+v+'"':''),unvan:un,refs:[{pid:R.pid,i:R.idx,entId:c.id||''}]})})}
+  return {acik:true,cx:A.cx,hedefler:[...[...T.values()].slice(0,A.maxTel),...C.slice(0,A.maxCo)]}}
+function webYazim(exp,sonF,out){const L=webListe(exp);const H=new Map(L.hedefler.map(h=>[h.id,h]));const S=webRd(sonF)||[];const writes=[];let atl=0;fs.mkdirSync(out,{recursive:true});
+  const tr=(s,n)=>String(s||'').replace(/\s+/g,' ').trim().slice(0,n);
+  for(const s of S){const h=H.get(s.id);if(!h){atl++;continue}const res=(Array.isArray(s.results)?s.results:[]).filter(r=>r&&/^https?:\/\//.test(String(r.url||''))).slice(0,5).map(r=>({title:tr(r.title,160),url:tr(r.url,400),snippet:tr(r.snippet,320)}));
+    const doc=Object.assign({},h,{results:res,kaynak:s.kaynak==='google-api'?'google-api':'websearch',t:Date.now(),status:res.length?'onay':'sonuc-yok'});const f=path.join(out,'web_'+h.id+'.json');fs.writeFileSync(f,JSON.stringify(doc));writes.push({op:'set',collection:'osint_web',doc_id:h.id,file_path:f})}
+  const files=[];for(let i=0;i<writes.length;i+=50){const f=path.join(out,'web_paket_'+(files.length+1)+'.json');fs.writeFileSync(f,JSON.stringify(writes.slice(i,i+50)));files.push(f)}
+  const o={yazilacak:writes.length,paketler:files,atlanan:atl};console.log(`Web araması: ${writes.length} öneri belgesi, ${files.length} paket · listede olmayan (atlandı): ${atl}`);return o}
 (async()=>{const [cmd,...a]=process.argv.slice(2);
   if(cmd==='calistir'){if(a.length<3){console.error('kullanım: calistir <disari> <uygulama.html> <cikti>');process.exit(2)}await calistir(...a);return}
   if(cmd==='ag-liste'){console.log(JSON.stringify(agListe(a[0],a[1])));return}
   if(cmd==='yok-isaretle'){fs.appendFileSync(path.join(a[0],'.yok'),a.slice(1).join('\n')+'\n');return}
   if(cmd==='gereken'){console.log(JSON.stringify(gereken(a[0]),null,1));return}
   if(cmd==='yazim'){const o=yazim(...a);process.exit(o.surum_eksik.length?4:0)}
+  if(cmd==='web-liste'){console.log(JSON.stringify(webListe(a[0]),null,1));return}
+  if(cmd==='web-yazim'){webYazim(...a);return}
   if(cmd==='karsilastir'){const same=karsilastir(a[0],a[1]);console.log(same?'AYNI':'FARKLI');process.exit(same?0:3)}
   console.error('komutlar: calistir | ag-liste | yok-isaretle | gereken | yazim | karsilastir');process.exit(2)})().catch(e=>{console.error(e);process.exit(1)});
 if(typeof module!=='undefined')module.exports={walk,canon,karsilastir};
