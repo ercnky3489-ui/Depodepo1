@@ -97,6 +97,10 @@ const R1={pid:'pK',idx:1,durum:'',persons:[{id:'p1',ad:'KURGU İKİ',kimlik:'300
     for(const x of [A,B]){OW.L.unshift(x);await db2.doc('osint_web/'+x.id).set(Object.assign({},x,{id:undefined}))}await owApply('co_kd');await owApply('tel_kd');
     return {a:OW.L.find(x=>x.id==='co_kd').status,b:OW.L.find(x=>x.id==='tel_kd').status,g:getR(0).companies[0].src.google.n,t:getR(1).persons[0].telefonlar.find(t=>t.id==='t4').gres}});
   ok(r.a==='eklendi'&&r.b==='eklendi'&&/Kimlik değişmiş sonuç/.test(r.g)&&/Kimlik değişmiş telefon/.test(r.t),'Föydeki kimlik sonradan değişse de öneri föye ekleniyor (aynı föyde ünvan / telefon numarasıyla eşleşme)',r);
+  /* föy adına basınca föy açılır */
+  await p.evaluate(()=>{document.querySelectorAll('.modal-bg').forEach(x=>x.remove());showScreen('mts');MTS.tab='ag';AG.view.m='onay';renderMts()});await p.waitForTimeout(400);
+  r=await p.evaluate(async()=>{const b=document.querySelector('.ow-q [data-owgo^="pK|1"]')||document.querySelector('[data-owgo^="pK|1"]');if(!b)return {b:false};b.click();for(let k=0;k<40&&!(S.sel===1&&S.pid==='pK');k++)await new Promise(r=>setTimeout(r,100));return {b:true,sel:S.sel,pid:S.pid}});
+  ok(r.b&&r.sel===1&&r.pid==='pK','Sorgulananlar tablosunda föy adına basınca o föy açılıyor',r);
   /* toplu “Tümünü föye ekle” */
   await p.evaluate(async()=>{const db2=await window.claude.use('db');const A={id:'co_b1',kind:'sirket',unvan:'KURGU LOJİSTİK',status:'onay',kaynak:'serper-google',t:Date.now(),refs:[{pid:'pK',i:0,entId:'c1'}],results:[{title:'Toplu sonuç A',url:'https://a.example.com.tr/',snippet:'a'}]};
     const B={id:'tel_b2',kind:'tel',tel:'5554443322',status:'onay',kaynak:'serper-google',t:Date.now(),refs:[{pid:'pK',i:1,entId:'p1',tid:'t4'}],results:[{title:'Toplu sonuç B',url:'https://b.example.com.tr/',snippet:'b'}]};
