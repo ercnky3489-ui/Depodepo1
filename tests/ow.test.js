@@ -77,4 +77,12 @@ const R1={pid:'pK',idx:1,durum:'',persons:[{id:'p1',ad:'KURGU İKİ',kimlik:'300
   await p.click('.ow-it:has-text("BAŞKA") [data-ow="red"]');await p.waitForTimeout(500);
   r=await p.evaluate(async()=>({st:(await (await window.claude.use('db')).doc('osint_web/co_x').get()).data().status,g:JSON.stringify(getR(0).companies[0].src||{}),left:document.querySelectorAll('.ow-it').length}));
   ok(r.st==='red'&&!/BAŞKA|Başka/.test(r.g)&&r.left===0,'“Reddet”: föye hiçbir şey yazılmadı, öneri reddedildi',r);
+  /* föydeki Google penceresi (8+7+10+6) */
+  r=await p.evaluate(async()=>{const R=getR(0);const c=R.companies[0];c.src=c.src||{};c.src.google={s:'var',n:'Web araması (28.11.2026, Google/Serper): KURGU LOJİSTİK firma kaydı — https://yenifirma.com.tr/firma/kurgu\nWeb araması (28.11.2026, Google/Serper): Kurgu Lojistik Instagram — https://www.instagram.com/kurgu\nWeb araması (28.11.2026, Google/Serper): Kurgu Lojistik iletişim Tel: 0212 555 44 33 — https://www.bulurum.com/kurgu\nelle yazılmış not'};
+    document.querySelectorAll('.modal-bg').forEach(x=>x.remove());openSrcDetay(c,'google');await new Promise(r=>setTimeout(r,200));const q=s=>document.querySelector(s);
+    const o={h:(q('.owg-bizc b')||{}).textContent,list:document.querySelectorAll('.owg-list button').length,facts:[...document.querySelectorAll('.owg-fact small')].map(x=>x.textContent),tel:(q('.owg-chips')||{}).textContent,diger:!!q('.owg-not'),shot:!!q('.owg-shot')};
+    document.querySelectorAll('.owg-list button')[1].click();await new Promise(r=>setTimeout(r,100));o.sel=(q('.owg-view .owg-t')||{}).textContent;
+    q('[data-m="vw:tbl"]').click();await new Promise(r=>setTimeout(r,100));o.rows=document.querySelectorAll('.owg-tbl tbody tr').length;document.querySelectorAll('.modal-bg').forEach(x=>x.remove());return o});
+  ok(/KURGU/.test(r.h)&&r.list===3&&r.facts.some(f=>/Şirket kaydı · 1/.test(f))&&r.facts.some(f=>/Sosyal medya · 1/.test(f))&&r.facts.some(f=>/Firma rehberi · 1/.test(f))&&/0212 555 44 33/.test(r.tel)&&r.diger&&r.shot,'Föydeki Google penceresi: işletme kartı (sonuçta geçen telefon), türlere göre bulgu özeti, okuyucu listesi, diğer notlar korunuyor',r);
+  ok(/Instagram/.test(r.sel)&&r.rows===3,'Okuyucuda seçilen sonuç açılıyor; Tablo sekmesi tüm sonuçları listeliyor',r);
   ok(!errs.length,'Sayfa hatası yok',errs);console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);fs.rmSync(W,{recursive:true,force:true});await b.close();srv.close();process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});
