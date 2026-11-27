@@ -42,5 +42,10 @@ const W=path.join(__dirname,'_bulut');fs.rmSync(W,{recursive:true,force:true});c
   const nw=all.filter(w=>!('if_version' in w)),ex=all.filter(w=>'if_version' in w);
   ok(all.length===Z.degisen.length-1&&nw.length===Z.degisen.filter(x=>x.yeni).length&&ex.every(w=>w.if_version===V[w.collection+'/'+w.doc_id])&&all.every(w=>w.op==='set'&&fs.existsSync(w.file_path)),'Yazım paketleri: mevcut belgeler sürüm kilitli (if_version), yeni belgeler sürümsüz, yalnız “set”, silme yok',{n:all.length,nw:nw.length});
   ok(Y.paketler.every(f=>JSON.parse(fs.readFileSync(f,'utf8')).length<=50),'Paket başına en çok 50 yazım');
+  {const O2=path.join(path.dirname(OUT),'_buyuk');fs.rmSync(O2,{recursive:true,force:true});fs.mkdirSync(path.join(O2,'s'),{recursive:true});const dg=[];
+    for(let k=0;k<5;k++){const f=path.join(O2,'d'+k+'.json');fs.writeFileSync(f,JSON.stringify({x:'a'.repeat(400000)}));dg.push({yol:'ag/b'+k,koleksiyon:'ag',belge:'b'+k,dosya:f,yeni:true})}
+    fs.writeFileSync(path.join(O2,'ozet.json'),JSON.stringify({degisen:dg}));cp.spawnSync('node',[RUN,'yazim',O2,path.join(O2,'s'),path.join(O2,'v.json')],{encoding:'utf8'});
+    const Y2=JSON.parse(fs.readFileSync(path.join(O2,'yazim_ozet.json'),'utf8'));const sz=Y2.paketler.map(f=>JSON.parse(fs.readFileSync(f,'utf8')).reduce((t,w)=>t+fs.statSync(w.file_path).size,0));
+    ok(Y2.yazilacak===5&&Y2.paketler.length===3&&sz.every(b=>b<=900000),'Büyük belgeler boyuta göre bölünüyor (toplu yazma 1 MiB sınırı: paket ≤ 900 KB)',sz);fs.rmSync(O2,{recursive:true,force:true})}
   fs.writeFileSync(VF,'{}');const y2=cp.spawnSync('node',[RUN,'yazim',OUT,SIM,VF],{encoding:'utf8'});ok(y2.status===4,'Sürüm bilgisi eksikse yazım planı hata koduyla duruyor (körlemesine yazmıyor)',y2.stdout);
   fs.rmSync(W,{recursive:true,force:true});console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});

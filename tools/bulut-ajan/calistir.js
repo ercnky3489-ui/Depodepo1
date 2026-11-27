@@ -31,9 +31,14 @@ async function calistir(exp,app,out){const {chromium}=require('playwright');cons
 
 /* 3) node calistir.js yazim <cikti_klasoru> <simdiki_disari_aktarim> <surumler.json>
       Değişen her belgeyi, bulut turu başladıktan sonra başkası değiştirmiş mi diye kontrol eder (dışa aktarılan ↔ şimdiki).
-      Değişmemişse ArtifactData “batch” yazımına (en çok 50 belge/paket, mevcut belgelerde if_version ile) ekler; değişmişse YAZMAZ.
+      Değişmemişse ArtifactData “batch” yazımına (en çok 50 belge ve ~900 KB/paket, mevcut belgelerde if_version ile) ekler; değişmişse YAZMAZ.
       Çıktı: <cikti>/paket_N.json (writes dizisi) ve <cikti>/yazim_ozet.json. surumler.json = {"<koleksiyon>/<belge>": <version>, …}
    4) node calistir.js gereken <cikti_klasoru>  → sürümü gereken belge yollarını ve okunacak koleksiyonları yazar. */
+/* Yazım paketleri: toplu yazma isteği en çok 1 MiB kabul ediyor → paket başına en çok 50 belge VE dosya boyutları toplamı ≤ 900 000 bayt.
+   Tek başına sınırı aşan belge kendi paketinde kalır (yazımı ayrıca raporlanır). */
+const PAKET_BAYT=900000,PAKET_ADET=50;
+function paketle(writes,out,pre){const files=[];let cur=[],sz=0;const flush=()=>{if(!cur.length)return;const f=path.join(out,pre+(files.length+1)+'.json');fs.writeFileSync(f,JSON.stringify(cur));files.push(f);cur=[];sz=0};
+  for(const w of writes){const b=fs.statSync(w.file_path).size+300;if(cur.length&&(sz+b>PAKET_BAYT||cur.length>=PAKET_ADET))flush();cur.push(w);sz+=b}flush();return files}
 function gereken(out){const Z=JSON.parse(fs.readFileSync(path.join(out,'ozet.json'),'utf8'));const ex=Z.degisen.filter(x=>!x.yeni);const cols=[...new Set(Z.degisen.map(x=>x.koleksiyon))];return {koleksiyonlar:cols,surum_gereken:ex.map(x=>x.yol)}}
 function yazim(out,simdi,surF){const Z=JSON.parse(fs.readFileSync(path.join(out,'ozet.json'),'utf8'));const V=fs.existsSync(surF)?JSON.parse(fs.readFileSync(surF,'utf8')):{};const writes=[],cak=[],eksik=[];
   for(const x of Z.degisen){const now=path.join(simdi,x.yol+'.json');const has=fs.existsSync(now);
@@ -41,7 +46,7 @@ function yazim(out,simdi,surF){const Z=JSON.parse(fs.readFileSync(path.join(out,
     if(!has){cak.push({yol:x.yol,neden:'belge bu arada silinmiş'});continue}
     if(!karsilastir(x.disari,now)){cak.push({yol:x.yol,neden:'bulut turu sırasında başka biri değiştirmiş; üzerine yazılmadı'});continue}
     const v=V[x.yol];if(!Number.isInteger(v)){eksik.push(x.yol);continue}writes.push({op:'set',collection:x.koleksiyon,doc_id:x.belge,file_path:x.dosya,if_version:v})}
-  const files=[];for(let i=0;i<writes.length;i+=50){const f=path.join(out,'paket_'+(files.length+1)+'.json');fs.writeFileSync(f,JSON.stringify(writes.slice(i,i+50)));files.push(f)}
+  const files=paketle(writes,out,'paket_');
   const o={yazilacak:writes.length,paketler:files,cakisma:cak,surum_eksik:eksik};fs.writeFileSync(path.join(out,'yazim_ozet.json'),JSON.stringify(o,null,1));
   console.log(`Yazılacak: ${writes.length} belge, ${files.length} paket · çakışma (yazılmayacak): ${cak.length} · sürümü eksik: ${eksik.length}`);return o}
 
@@ -78,7 +83,7 @@ function webYazim(exp,sonF,out){const L=webListe(exp);const H=new Map(L.hedefler
   const tr=(s,n)=>String(s||'').replace(/\s+/g,' ').trim().slice(0,n);
   for(const s of S){const h=H.get(s.id);if(!h){atl++;continue}const res=(Array.isArray(s.results)?s.results:[]).filter(r=>r&&/^https?:\/\//.test(String(r.url||''))).slice(0,5).map(r=>({title:tr(r.title,160),url:tr(r.url,400),snippet:tr(r.snippet,320)}));
     const doc=Object.assign({},h,{results:res,kaynak:s.kaynak==='google-api'?'google-api':'websearch',t:Date.now(),status:res.length?'onay':'sonuc-yok'});const f=path.join(out,'web_'+h.id+'.json');fs.writeFileSync(f,JSON.stringify(doc));writes.push({op:'set',collection:'osint_web',doc_id:h.id,file_path:f})}
-  const files=[];for(let i=0;i<writes.length;i+=50){const f=path.join(out,'web_paket_'+(files.length+1)+'.json');fs.writeFileSync(f,JSON.stringify(writes.slice(i,i+50)));files.push(f)}
+  const files=paketle(writes,out,'web_paket_');
   const o={yazilacak:writes.length,paketler:files,atlanan:atl};console.log(`Web araması: ${writes.length} öneri belgesi, ${files.length} paket · listede olmayan (atlandı): ${atl}`);return o}
 (async()=>{const [cmd,...a]=process.argv.slice(2);
   if(cmd==='calistir'){if(a.length<3){console.error('kullanım: calistir <disari> <uygulama.html> <cikti>');process.exit(2)}await calistir(...a);return}
