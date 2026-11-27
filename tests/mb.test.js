@@ -22,22 +22,22 @@ const APP=path.resolve(process.argv[2]||'../out55.html');let pass=0,fail=0;const
   r=await p.evaluate(()=>({n:document.querySelectorAll('#mbOv .mb-stop').length,map:[...document.querySelectorAll('#mbOv .mb-stop a')].map(a=>a.getAttribute('href')),noad:document.querySelectorAll('#mbOv .mb-stop')[1].textContent.includes('Adres kayıtlı değil')}));
   ok(r.n===2&&r.map.some(h=>/google\.com\/maps\/search\/.*Kurgu/.test(h))&&r.map.includes('tel:05001112233')&&r.noad,'Saha listesi: hacze föyleri, harita ve arama bağlantıları; adresi olmayan belirtiliyor',r);
   await p.click('[data-mb-f="all"]');await p.waitForTimeout(200);ok(await p.evaluate(()=>document.querySelectorAll('#mbOv .mb-stop').length===3),'Saha filtresi “Tümü” devam eden föyü de gösteriyor');
-  /* saha modu: listeden dokununca ayrı ekran; kayıtlar föye */
+  /* saha modu: listeden dokununca ayrı ekran = föyün Saha bölümü; kayıtlar föye */
   await p.click('#mbOv .mb-stop-go[data-mb-z="0"]');await p.waitForTimeout(500);
-  r=await p.evaluate(()=>({ov:MB.ov,sel:S.sel,h:document.querySelector('#mbOv .mb-zn').textContent,pos:document.querySelector('#mbOv .mb-ov-l').textContent,btn:document.querySelectorAll('#mbOv .mb-zsb').length,tiles:document.querySelectorAll('#mbOv .mb-zt').length,ph:!!document.querySelector('#mbOv input#sfPh[capture]')}));
-  ok(r.ov==='ziyaret'&&r.sel===0&&/1\/3/.test(r.pos)&&r.btn===4&&r.tiles===4&&r.ph,'Saha listesinde föye dokununca ayrı Saha modu ekranı açılıyor (sonuç, fotoğraf, sesli not, masraf, tahsilat)',r);
+  r=await p.evaluate(()=>({ov:MB.ov,sel:S.sel,pos:document.querySelector('#mbOv .mb-ov-l').textContent,btn:document.querySelectorAll('#mbOv .mb-zsb').length,box:!!document.querySelector('#mbOv #sfBox .sf-grid'),forms:document.querySelectorAll('#mbOv form[data-sff]').length,ph:!!document.querySelector('#mbOv input#sfPh[capture]'),xls:!!document.querySelector('#mbOv [data-sf="xls"]'),one:document.querySelectorAll('#mbOv #sfBox').length}));
+  ok(r.ov==='ziyaret'&&r.sel===0&&/1\/3/.test(r.pos)&&r.btn===4&&r.box&&r.forms===2&&r.ph&&r.xls&&r.one===1,'Saha listesinde föye dokununca föyün Saha bölümüyle aynı ayrı ekran açılıyor (masraf/tahsilat formları, not, fotoğraf, Excel)',r);
   await p.screenshot({path:'mb_ziyaret.png'});
-  await p.click('#mbOv [data-mbz="sonuc"][data-v="Kapı açılmadı"]');await p.fill('#sfNote','Komşu taşındığını söyledi');
-  await p.click('#mbOv [data-mbz="masraf"]');await p.fill('#mbzMa','150');await p.fill('#mbzMn','yol');await p.click('#mbOv [data-mbz="masrafEkle"]');await p.waitForTimeout(200);
-  await p.click('#mbOv [data-mbz="tahsilat"]');await p.fill('#mbzTa','1.000,50');await p.click('#mbOv [data-mbz="tahsilatEkle"]');await p.waitForTimeout(200);
-  r=await p.evaluate(()=>({note:document.getElementById('sfNote').value,on:document.querySelector('#mbOv .mb-zsb.on')&&document.querySelector('#mbOv .mb-zsb.on').textContent}));
-  ok(r.note==='Komşu taşındığını söyledi'&&r.on==='Kapı açılmadı','Masraf/tahsilat eklerken yazılan not ve seçilen sonuç kaybolmuyor',r);
-  await p.click('#mbOv [data-mbz="sonraki"]');await p.waitForTimeout(500);
-  r=await p.evaluate(()=>{const R=getR(0);return {m:(R.masraflar||[]).map(x=>[x.tutar,x.tur,x.not]),t:(R.tahsilatlar||[]).map(x=>x.tutar),n:(R.sahaNotlari||[]).map(x=>x.text),z:(R.sahaNotlari||[]).map(x=>x.ziyaret&&x.ziyaret.sonuc),du:R.durum,next:MB.z&&MB.z.i,ov:MB.ov}});
+  await p.fill('#sfMa','150');await p.fill('#sfMn','yol');await p.click('#mbOv form[data-sff="masraf"] button[type="submit"]');await p.waitForTimeout(300);
+  await p.fill('#sfTa','1.000,50');await p.click('#mbOv form[data-sff="tahsilat"] button[type="submit"]');await p.waitForTimeout(300);
+  await p.fill('#sfNote','Komşu taşındığını söyledi');await p.click('#mbOv [data-mbz="sonuc"][data-v="Kapı açılmadı"]');
+  r=await p.evaluate(()=>({note:document.getElementById('sfNote').value,tot:document.querySelector('#mbOv .sf-tot').textContent.replace(/\s+/g,' ')}));
+  ok(/^Ziyaret: Kapı açılmadı · Kurgu Mah\. 1 Sk\. — Komşu taşındığını söyledi$/.test(r.note)&&/150,00/.test(r.tot)&&/1\.000,50/.test(r.tot),'Masraf/tahsilat ekranda toplanıyor; ziyaret sonucu nota ekleniyor',r);
+  await p.click('#mbOv [data-sf="note"]');await p.waitForTimeout(300);
+  r=await p.evaluate(()=>{const R=getR(0);return {m:(R.masraflar||[]).map(x=>[x.tutar,x.not]),t:(R.tahsilatlar||[]).map(x=>x.tutar),n:(R.sahaNotlari||[]).map(x=>x.text),du:R.durum,ov:MB.ov}});
   ok(r.m.length===1&&r.m[0][0]===150&&r.t[0]===1000.5,'Masraf ve tahsilat föyün kaydına yazıldı',r);
-  ok(r.n.length===1&&/Ziyaret: Kapı açılmadı · Kurgu Mah/.test(r.n[0])&&/Komşu taşındığını/.test(r.n[0])&&r.z[0]==='Kapı açılmadı','Ziyaret sonucu ve not föyün saha notlarına yazıldı',r.n);
-  ok(r.du==='hacze','Föy durumu otomatik değişmedi',r.du);ok(r.ov==='ziyaret'&&r.next===1,'“Kaydet ve sonrakine geç” listedeki sonraki föyü açıyor',r);
-  await p.click('#mbOv [data-mbz="kaydet"]');await p.waitForTimeout(200);ok(await p.evaluate(()=>(getR(1).sahaNotlari||[]).length===0),'Sonuç ve not yoksa boş kayıt yazılmıyor');
+  ok(r.n.length===1&&/Ziyaret: Kapı açılmadı/.test(r.n[0]),'Saha notu (ziyaret sonucuyla) föye yazıldı',r.n);
+  ok(r.du==='hacze'&&r.ov==='ziyaret','Föy durumu otomatik değişmedi; ekran açık kalıyor',r);
+  await p.click('#mbOv [data-mbz="sonraki"]');await p.waitForTimeout(500);ok(await p.evaluate(()=>MB.ov==='ziyaret'&&MB.z.i===1&&S.sel===1&&!document.getElementById('sfNote').value),'“Sonraki föy” listedeki sonraki föyün saha ekranını açıyor');
   await p.click('#mbOv [data-mbz="foy"]');await p.waitForTimeout(700);
   r=await p.evaluate(()=>({ov:MB.ov,scr:S.screen,sel:S.sel,tab:S.tab,kart:!!document.querySelector('#cardPane .mb-kart'),tacc:document.getElementById('tacc')?getComputedStyle(document.getElementById('tacc')).display:'yok'}));
   ok(!r.ov&&r.scr==='dosyalar'&&r.sel===1&&r.tab==='saha','Saha modundan “Föyü aç” föyü Saha sekmesinde açıyor',r);
