@@ -11,20 +11,27 @@ const APP=path.resolve(process.argv[2]||'../out55.html');let pass=0,fail=0;const
   await p.evaluate(()=>document.querySelectorAll('.modal-bg').forEach(x=>x.remove()));
   let r=await p.evaluate(()=>({mob:document.documentElement.getAttribute('data-ui'),on:document.body.classList.contains('mb-on'),nav:document.querySelector('#mbNav').checkVisibility(),old:document.querySelector('#bottomNav').checkVisibility(),tabs:[...document.querySelectorAll('#mbNav .mb-nl')].map(x=>x.textContent),sw:document.documentElement.scrollWidth,logo:!!document.querySelector('#mtsScreen .mts-logo svg.mb-logo')}));
   ok(r.mob==='mob'&&r.on&&r.nav&&!r.old,'Telefonda yeni alt menü görünüyor, eski menü gizli',r);
-  ok(r.tabs.join('|')==='Ana Sayfa|Föyler|Saha|Aşamalar|Ofis','Alt menü sekmeleri: Ana Sayfa · Föyler · Saha · Aşamalar · Ofis',r.tabs);
+  ok(r.tabs.join('|')==='Ana Sayfa|Föyler|Saha|Pano|Ofis','Alt menü sekmeleri: Ana Sayfa · Föyler · Saha · Pano · Ofis',r.tabs);
   ok(r.sw<=390,'Açılış ekranı telefonda yatay taşmıyor',r.sw);ok(r.logo,'Açılış ekranında terazi logosu');
   await p.evaluate(async()=>{await openPortfolio('pA');showScreen('dosyalar');[0,1,2].forEach(i=>{const R=getR(i);R._fresh=false;R.durum=i<2?'hacze':'devam';R.persons[0].adres=i===0?'Kurgu Mah. 1 Sk.':'';R.persons[0].telefonlar=i===0?[{id:'t',tel:'05001112233',def:true}]:[];if(i===0){R.persons[0].src.gib={s:'var',n:''};R.persons[0].gibData={vkn:'1',vd:'X',durum:'FAAL'}}R.updatedAt=new Date().toISOString();S.research.set(i,R)})});
   await p.click('[data-mb-go="home"]');await p.waitForTimeout(500);
   r=await p.evaluate(()=>({ov:MB.ov,t:document.querySelector('#mbOv .mb-hero-t').textContent,pst:document.querySelectorAll('#mbOv .mb-sec:first-of-type .mb-pst').length,brand:document.querySelector('#mbOv .mb-wm').textContent,svg:!!document.querySelector('#mbOv svg.mb-logo'),pressed:document.querySelector('[data-mb-go="home"]').getAttribute('aria-pressed')}));
   ok(r.ov==='home'&&/2 föy hacze/.test(r.t)&&r.pressed==='true','Ana Sayfa: hacze çıkılabilir föy sayısı doğru (2) ve sekme seçili',r);
   ok(r.brand==='İcraSaha'&&r.svg,'Ana Sayfa üst bandında terazi logosu ve İcraSaha adı',r);
+  r=await p.evaluate(()=>{const f=[...document.querySelectorAll('#mbOv > section')][0];return {cls:f&&f.className,on:[...document.querySelectorAll('#mbOv .mb-pk.on')].map(x=>x.textContent.replace(/\s+/g,' ').trim())}});
+  ok(r.cls==='mb-pick'&&r.on.length===1&&/Kurgu A/.test(r.on[0])&&/SEÇİLİ/.test(r.on[0]),'Portföy seçici ana sayfanın en üstünde; açık portföy “SEÇİLİ”',r);
+  r=await p.evaluate(async()=>{const bak=[HX.bpf,window.hxSetMode,window.hxOpenEmbed,HX.on,HX.ready,HX.data];const calls=[];HX.bpf={name:'İstanbul Varlık · HANSOFT',alacakli:'İstanbul Varlık',count:5};
+    window.hxSetMode=(on,save)=>{calls.push(['mode',on,save]);HX.on=on;document.body.classList.toggle('hx-on',on)};window.hxOpenEmbed=async scr=>{calls.push(['embed',scr])};HX.ready=true;HX.data=Object.assign({},HX.data,{hx_debtors:[{}]});
+    mbOpen('home');const first=document.querySelector('#mbOv .mb-pk');const fi=first&&first.textContent;const ok1=await mbEnsureIst();const act=mbActivePid();const onTxt=(document.querySelector('#mbOv .mb-pk.on')||{}).textContent||'';
+    [HX.bpf,window.hxSetMode,window.hxOpenEmbed]=bak;HX.on=false;document.body.classList.remove('hx-on');HX.ready=bak[4];HX.data=bak[5];mbOpen('home');return {fi,calls,act,onTxt}});
+  ok(/İstanbul Varlık/.test(r.fi)&&r.calls.some(c=>c[0]==='mode'&&c[1]===true&&c[2]===false)&&r.calls.some(c=>c[0]==='embed'&&c[1]==='dosyalar')&&/İstanbul Varlık/.test(r.onTxt)&&/SEÇİLİ/.test(r.onTxt),'İstanbul Varlık seçicide ilk sırada ve varsayılan olarak seçiliyor (masaüstü tercihi değişmeden)',r);
   await p.click('[data-mb-go="saha"]');await p.waitForTimeout(400);
   r=await p.evaluate(()=>({n:document.querySelectorAll('#mbOv .mb-stop').length,map:[...document.querySelectorAll('#mbOv .mb-stop a')].map(a=>a.getAttribute('href')),noad:document.querySelectorAll('#mbOv .mb-stop')[1].textContent.includes('Adres kayıtlı değil')}));
   ok(r.n===2&&r.map.some(h=>/google\.com\/maps\/search\/.*Kurgu/.test(h))&&r.map.includes('tel:05001112233')&&r.noad,'Saha listesi: hacze föyleri, harita ve arama bağlantıları; adresi olmayan belirtiliyor',r);
   await p.click('[data-mb-f="all"]');await p.waitForTimeout(200);ok(await p.evaluate(()=>document.querySelectorAll('#mbOv .mb-stop').length===3),'Saha filtresi “Tümü” devam eden föyü de gösteriyor');
   /* saha modu: listeden dokununca ayrı ekran = föyün Saha bölümü; kayıtlar föye */
   await p.click('#mbOv .mb-stop-go[data-mb-z="0"]');await p.waitForTimeout(500);
-  r=await p.evaluate(()=>({ov:MB.ov,sel:S.sel,pos:document.querySelector('#mbOv .mb-ov-l').textContent,btn:document.querySelectorAll('#mbOv .mb-zsb').length,box:!!document.querySelector('#mbOv #sfBox .sf-grid'),forms:document.querySelectorAll('#mbOv form[data-sff]').length,ph:!!document.querySelector('#mbOv input#sfPh[capture]'),xls:!!document.querySelector('#mbOv [data-sf="xls"]'),one:document.querySelectorAll('#mbOv #sfBox').length}));
+  r=await p.evaluate(()=>({ov:MB.ov,sel:S.sel,pos:document.querySelector('#mbOv .mb-ov-l').textContent,btn:document.querySelectorAll('#mbOv .mb-zsb').length,box:!!document.querySelector('#mbOv #sfBox .sf-grid'),forms:document.querySelectorAll('#mbOv form[data-sff]').length,ph:!!document.querySelector('#mbOv input#sfPh[multiple]'),xls:!!document.querySelector('#mbOv [data-sf="xls"]'),one:document.querySelectorAll('#mbOv #sfBox').length}));
   ok(r.ov==='ziyaret'&&r.sel===0&&/1\/3/.test(r.pos)&&r.btn===4&&r.box&&r.forms===2&&r.ph&&r.xls&&r.one===1,'Saha listesinde föye dokununca föyün Saha bölümüyle aynı ayrı ekran açılıyor (masraf/tahsilat formları, not, fotoğraf, Excel)',r);
   await p.screenshot({path:'mb_ziyaret.png'});
   await p.fill('#sfMa','150');await p.fill('#sfMn','yol');await p.click('#mbOv form[data-sff="masraf"] button[type="submit"]');await p.waitForTimeout(300);
@@ -37,6 +44,17 @@ const APP=path.resolve(process.argv[2]||'../out55.html');let pass=0,fail=0;const
   ok(r.m.length===1&&r.m[0][0]===150&&r.t[0]===1000.5,'Masraf ve tahsilat föyün kaydına yazıldı',r);
   ok(r.n.length===1&&/Ziyaret: Kapı açılmadı/.test(r.n[0]),'Saha notu (ziyaret sonucuyla) föye yazıldı',r.n);
   ok(r.du==='hacze'&&r.ov==='ziyaret','Föy durumu otomatik değişmedi; ekran açık kalıyor',r);
+  /* çoklu fotoğraf + Kaydet + animasyon */
+  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFklEQVR42mNk+M9QzwAEjDAGNzYAAAz/AwBnD0EgAAAAAElFTkSuQmCC','base64');
+  ok(await p.evaluate(()=>{const i=document.querySelector('#mbOv #sfPh');return i.multiple&&!i.hasAttribute('capture')}),'Fotoğraf seçici çoklu seçime açık (galeriden birden fazla)');
+  await p.setInputFiles('#mbOv #sfPh',[{name:'a.png',mimeType:'image/png',buffer:png},{name:'b.png',mimeType:'image/png',buffer:png}]);await p.waitForSelector('#mbPh figure');await p.waitForTimeout(300);
+  r=await p.evaluate(()=>({n:document.querySelectorAll('#mbPh figure').length,saved:(S.media.get(S.sel)||[]).filter(m=>m.src==='saha').length}));
+  ok(r.n===2&&r.saved===0,'Seçilen 2 fotoğraf önizlemede bekliyor; Kaydet’e basmadan föye yazılmıyor',r);
+  await p.click('#mbPh [data-mbph="rm"]');await p.setInputFiles('#mbOv #sfPh',[{name:'c.png',mimeType:'image/png',buffer:png},{name:'d.png',mimeType:'image/png',buffer:png}]);await p.waitForTimeout(500);
+  await p.fill('#mbPhL','Kapı');await p.click('#mbPh [data-mbph="save"]');await p.waitForSelector('.mb-burst');
+  r=await p.evaluate(()=>({b:document.querySelector('.mb-burst').textContent,saved:(S.media.get(S.sel)||[]).filter(m=>m.src==='saha').map(m=>m.label),sheet:!!document.getElementById('mbPh'),gal:document.querySelectorAll('#mbOv .sf-gal figure').length,log:(getR(S.sel).log||[]).some(l=>/3 adet · Kapı/.test(l.m))}));
+  ok(r.saved.length===3&&r.saved.every(l=>l==='Saha · Kapı')&&/3 fotoğraf föye kaydedildi/.test(r.b)&&!r.sheet&&r.gal===3&&r.log,'Kaydet: 3 fotoğraf föye yazıldı, kısa onay animasyonu çıktı, galeri güncellendi',r);
+  await p.waitForTimeout(1900);ok(await p.evaluate(()=>!document.querySelector('.mb-burst')),'Animasyon kısa sürüp kayboluyor');
   await p.click('#mbOv [data-mbz="sonraki"]');await p.waitForTimeout(500);ok(await p.evaluate(()=>MB.ov==='ziyaret'&&MB.z.i===1&&S.sel===1&&!document.getElementById('sfNote').value),'“Sonraki föy” listedeki sonraki föyün saha ekranını açıyor');
   await p.click('#mbOv [data-mbz="foy"]');await p.waitForTimeout(700);
   r=await p.evaluate(()=>({ov:MB.ov,scr:S.screen,sel:S.sel,tab:S.tab,kart:!!document.querySelector('#cardPane .mb-kart'),tacc:document.getElementById('tacc')?getComputedStyle(document.getElementById('tacc')).display:'yok'}));
@@ -48,7 +66,7 @@ const APP=path.resolve(process.argv[2]||'../out55.html');let pass=0,fail=0;const
   r=await p.evaluate(()=>{const k=document.querySelector('#cardPane .mb-kart');return {tel:k.querySelector('a[href^="tel:"]')&&k.querySelector('a[href^="tel:"]').getAttribute('href'),gib:[...k.querySelectorAll('.mb-ic')].map(x=>x.textContent)[0],n:k.querySelectorAll('.mb-ic').length}});
   ok(r.tel==='tel:05001112233'&&/Faal mükellef/.test(r.gib)&&r.n===7,'Kişi kartı: Ara bağlantısı ve 7 kutulu istihbarat özeti (GİB faal)',r);
   await p.click('#cardPane .mb-ic');await p.waitForTimeout(300);ok(await p.evaluate(()=>S.tab==='kisi'&&S.pTabs[getR(0).persons[0].id]==='ist'),'İstihbarat kutusu kişinin istihbarat bölümünü açıyor');
-  await p.click('[data-mb-go="asama"]');await p.waitForTimeout(400);ok(await p.evaluate(()=>S.screen==='asama'&&document.querySelector('[data-mb-go="asama"]').getAttribute('aria-pressed')==='true'),'Aşamalar sekmesi mevcut Aşamalar ekranını açıyor');
+  await p.click('[data-mb-go="pano"]');await p.waitForTimeout(400);ok(await p.evaluate(()=>S.screen==='ana'&&document.querySelector('[data-mb-go="pano"]').getAttribute('aria-pressed')==='true'),'Pano sekmesi mevcut Pano (Ana Panel) ekranını açıyor');
   await p.evaluate(()=>{window.__fw=[];const _w=aoWantsFlat;window.aoWantsFlat=function(){const v=_w.apply(this,arguments);__fw.push(v);return v}});
   await p.click('[data-mb-go="ofis"]');await p.waitForTimeout(800);
   r=await p.evaluate(()=>({ov:MB.ov,box:!!document.querySelector('#mbOv #aoBox'),one:document.querySelectorAll('#aoView').length,gl:aoGL(),flat:aoWantsFlat()}));
