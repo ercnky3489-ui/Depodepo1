@@ -80,20 +80,34 @@ const WEB_STOP=new Set(['LTD','LİMİTED','ŞTİ','ŞİRKETİ','A','Ş','AŞ','A
 const webUn=s=>String(s||'').toLocaleUpperCase('tr').replace(/[^0-9A-ZÇĞİÖŞÜ]+/g,' ').split(' ').filter(w=>w&&!WEB_STOP.has(w)).join(' ');
 const webVkn=s=>{const v=String(s||'').replace(/\D/g,'');return v.length===10?v:''};
 const webH=s=>require('crypto').createHash('sha1').update(s).digest('hex').slice(0,12);
+/* Sorgu kurma (sürüm 2): tam resmî ünvan tırnakla aranınca neredeyse hiç eşleşme çıkmıyor. Bunun yerine
+   ayırt edici ad (ilk 1–3 kelime, sektör/tür kelimelerinden önce) tırnakla + en çok 2 sektör kelimesi; ikinci sorgu VKN ya da tam ünvan. */
+const WEB_QV=2;
+const WEB_HUKUK=new Set(['LTD','LİMİTED','ŞTİ','ŞİRKETİ','ŞİRKET','A','Ş','AŞ','ANONİM','KOLL','KOMANDİT','KOOPERATİFİ']);
+const WEB_SEKTOR=new Set(['TARIM','HAYVANCILIK','GIDA','İNŞAAT','İNŞ','SANAYİ','SAN','TİCARET','TİC','PAZARLAMA','OTOMOTİV','TEKSTİL','İMALAT','METAL','NAKLİYAT','NAKLİYE','LOJİSTİK','TURİZM','ENERJİ','MADENCİLİK','MOBİLYA','DEKORASYON','RESTORAN','KONAKLAMA','EMLAK','OTOMASYON','ELEKTRİK','ELEKTRONİK','KİMYA','PLASTİK','AMBALAJ','YAPI','MALZEMELERİ','ÜRÜNLERİ','SÜT','ET','OTO','TAMİR','DIŞ','İTHALAT','İHRACAT','İTH','İHR','VE','ÜRETİM','HİZMETLERİ','DANIŞMANLIK','YAZILIM','BİLİŞİM','SAĞLIK','EĞİTİM','GÜVENLİK','TEKNOLOJİLERİ','CNC','TALAŞLI','ORMAN','AHŞAP','MAD','KİMYEVİ','ZEYTİN','ZEYTİNYAĞI','ACENTELİĞİ','SEYAHAT','ARAÇ','KİRALAMA','HEDİYELİK','ÇİFTLİĞİ']);
+const webTemiz=s=>String(s||'').replace(/(Kuruluş Tarihi|Firma Durumu|Vergi (No|Dairesi)|Sicil No).*$/i,'').replace(/\([^)]*\)/g,' ').replace(/\s+/g,' ').trim();
+const webTitle=w=>w.charAt(0)+w.slice(1).toLocaleLowerCase('tr');
+function webCoQ(un,v){const temiz=webTemiz(un);const W=temiz.toLocaleUpperCase('tr').replace(/[^0-9A-ZÇĞİÖŞÜ]+/g,' ').trim().split(' ').filter(Boolean);
+  const core=[];let i=0;for(;i<W.length&&core.length<3;i++){const w=W[i];if(WEB_HUKUK.has(w)||(WEB_SEKTOR.has(w)&&core.length&&w!=='ÇİFTLİĞİ'))break;core.push(w)}
+  if(W[i]==='ÇİFTLİĞİ'&&core.length<3)core.push(W[i++]);
+  const sek=[...new Set(W.slice(i).filter(w=>WEB_SEKTOR.has(w)&&w.length>3&&!['SANAYİ','TİCARET','İTHALAT','İHRACAT','ÜRÜNLERİ','HİZMETLERİ','MALZEMELERİ','ÜRETİM'].includes(w)))].slice(0,2);
+  if(!core.length||core.join('').length<3)return null;
+  if(core.length===1&&!sek.length){const full=temiz.toLocaleUpperCase('tr').replace(/[^0-9A-ZÇĞİÖŞÜ ]+/g,' ').split(/\s+/).filter(w=>w&&!WEB_HUKUK.has(w)).slice(0,3);core.splice(0,1,...full)}
+  return {q:'"'+core.map(webTitle).join(' ')+'"'+(sek.length?' '+sek.map(w=>w.toLocaleLowerCase('tr')).join(' '):''),q2:v?'"'+v+'"':'"'+temiz+'"',temiz}}
 function webSorgulanan(wdir){const tel=new Set(),co=new Set();if(!fs.existsSync(wdir))return {tel,co};
-  for(const f of fs.readdirSync(wdir).filter(f=>f.endsWith('.json')&&f!=='_ayar.json')){let d=webRd(path.join(wdir,f));if(!d)continue;if(d.data&&!d.kind)d=d.data;
+  for(const f of fs.readdirSync(wdir).filter(f=>f.endsWith('.json')&&f!=='_ayar.json')){let d=webRd(path.join(wdir,f));if(!d)continue;if(d.data&&!d.kind)d=d.data;if(d.status==='sonuc-yok'&&!(d.qv>=WEB_QV))continue;
     if(d.kind==='tel'||/^tel_/.test(f)){const t=webTel(d.tel||f.slice(4,-5));if(t)tel.add(t)}
     else{const v=webVkn(d.vkn)||((String(d.q||'').match(/"(\d{10})"/)||[])[1]||'');if(v)co.add('v'+v);const u=webUn(d.unvan);if(u)co.add('u'+u)}}
   return {tel,co}}
 function webListe(exp){const A=webAyar(exp);if(!A.on)return {acik:false,hedefler:[]};const rdir=path.join(exp,'research');const wdir=path.join(exp,'osint_web');
   const Q=webSorgulanan(wdir);const T=new Map(),C=new Map(),notlu=new Set();
   if(fs.existsSync(rdir))for(const f of fs.readdirSync(rdir).filter(f=>f.endsWith('.json')).sort()){const R=webRd(path.join(rdir,f));if(!R||!R.pid)continue;
-    (R.persons||[]).forEach(p=>(p.telefonlar||[]).forEach(t=>{const d=webTel(t.tel);if(!d)return;if(t.gs){Q.tel.add(d);return}if(Q.tel.has(d))return;const id='tel_'+d;if(!T.has(id))T.set(id,{id,kind:'tel',q:'"'+webFmt(d)+'" OR "0'+d+'"',tel:d,refs:[]});T.get(id).refs.push({pid:R.pid,i:R.idx,entId:p.id||'',tid:t.id||''})}));
+    (R.persons||[]).forEach(p=>(p.telefonlar||[]).forEach(t=>{const d=webTel(t.tel);if(!d)return;if(t.gs){Q.tel.add(d);return}if(Q.tel.has(d))return;const id=(fs.existsSync(path.join(wdir,'tel_'+d+'.json'))?'tel2_':'tel_')+d;if(!T.has(id))T.set(id,{id,kind:'tel',q:'"'+webFmt(d)+'"',q2:'"0'+d+'"',tel:d,qv:WEB_QV,refs:[]});T.get(id).refs.push({pid:R.pid,i:R.idx,entId:p.id||'',tid:t.id||''})}));
     (R.companies||[]).forEach(c=>{const un=String(c.unvan||'').trim();if(un.length<3)return;const v=webVkn(c.vkn),u=webUn(un);const key=v?'v'+v:'u'+u;if(!u&&!v)return;
       const g=c.src&&c.src.google;if(g&&(g.s||String(g.n||'').trim())){notlu.add(key);if(u)notlu.add('u'+u);return}
-      if(!C.has(key))C.set(key,{id:'co_'+(v?'v'+v:'u'+webH(u)),kind:'sirket',q:'"'+un.replace(/"/g,'')+'"'+(v?' OR "'+v+'"':''),unvan:un,vkn:v,_k:[key,'u'+u],refs:[]});
+      if(!C.has(key)){const Qc=webCoQ(un,v);if(!Qc)return;C.set(key,{id:'co_'+(v?'v'+v:'u'+webH(u)),kind:'sirket',q:Qc.q,q2:Qc.q2,unvan:Qc.temiz||un,vkn:v,qv:WEB_QV,_k:[key,'u'+u],refs:[]})}
       C.get(key).refs.push({pid:R.pid,i:R.idx,entId:c.id||''})})}
-  for(const t of [...T.values()])if(Q.tel.has(t.tel))T.delete(t.id);
+  for(const [id,t] of [...T.entries()])if(Q.tel.has(t.tel))T.delete(id);
   const cos=[...C.values()].filter(c=>!c._k.some(k=>Q.co.has(k)||notlu.has(k))&&!fs.existsSync(path.join(wdir,c.id+'.json'))).map(c=>{const o=Object.assign({},c);delete o._k;return o});
   return {acik:true,cx:A.cx,hedefler:[...[...T.values()].slice(0,A.maxTel),...cos.slice(0,A.maxCo)]}}
 function webYazim(exp,sonF,out){const L=webListe(exp);const H=new Map(L.hedefler.map(h=>[h.id,h]));const S=webRd(sonF)||[];const writes=[];let atl=0;fs.mkdirSync(out,{recursive:true});

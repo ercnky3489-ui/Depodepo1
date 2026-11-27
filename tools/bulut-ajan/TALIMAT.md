@@ -49,10 +49,12 @@ Kurallar (yukarıdaki kurallara ek):
 Adımlar:
 1. `get` `osint_web/_ayar`, `out_dir: "/tmp/bulut/export"`. Belge yoksa ya da `on` true değilse bu bölümü atla ve raporda “web araması kapalı” yaz.
 2. `list` `osint_web` (limit 1000, `next_cursor` bitene kadar), `out_dir: "/tmp/bulut/export"`.
-3. `node tools/bulut-ajan/calistir.js web-liste /tmp/bulut/export > /tmp/bulut/web_liste.json` → `hedefler` listesi (her hedefte `id`, `kind`, `q`).
+3. `node tools/bulut-ajan/calistir.js web-liste /tmp/bulut/export > /tmp/bulut/web_liste.json` → `hedefler` listesi (her hedefte `id`, `kind`, `q`, `q2`).
 4. Her hedef için arama yap:
    - `cx` doluysa ve Google API kullanılabiliyorsa: `curl -s -G -H "X-Goog-Api-Key: anahtar" "https://www.googleapis.com/customsearch/v1" --data-urlencode "cx=<cx>" --data-urlencode "q=<q>" --data-urlencode "num=5" --data-urlencode "gl=tr" --data-urlencode "hl=tr"` (anahtarı ağ vekili ekler; buradaki “anahtar” yer tutucudur). Yanıttaki `items[].title / link / snippet` → `kaynak: "google-api"`. İstek 401/403/429 verirse API’yi bu turda bırak ve aramaya WebSearch ile devam et.
    - Aksi halde WebSearch aracıyla `q` sorgusunu ara; ilk en çok 5 sonucun başlık, adres ve özetini al → `kaynak: "websearch"`.
+   - `q` ile hiç sonuç çıkmazsa aynı hedef için `q2` ile bir kez daha ara (aynı kaynakla). İki sorgu da boşsa `results: []`. Sonuçları kendin süzme ya da yorumlama; yalnız sorgudaki numarayı / adı içermeyen açıkça ilgisiz sonuçları (ör. başka ülkedeki aynı haneli numaralar) atabilirsin.
+   - Not: WebSearch ABD merkezlidir, Türkiye’deki küçük işletmeleri çoğu zaman bulamaz; `cx` doluysa her zaman önce Google API kullan.
    - Sonuçları `/tmp/bulut/web_sonuc.json` dosyasına `[{"id":"<hedef id>","kaynak":"...","results":[{"title":"...","url":"...","snippet":"..."}]}]` biçiminde yaz (sonuç yoksa `results: []`).
 5. `node tools/bulut-ajan/calistir.js web-yazim /tmp/bulut/export /tmp/bulut/web_sonuc.json /tmp/bulut/web` → `/tmp/bulut/web/web_paket_*.json`.
 6. Her paket için ArtifactData `action: "batch"`, `writes` = dosyanın içeriği (olduğu gibi). Reddedilen paketi yeniden deneme; raporla.
