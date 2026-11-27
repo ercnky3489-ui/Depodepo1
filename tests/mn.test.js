@@ -9,7 +9,7 @@ const APP=path.resolve(process.argv[2]||'../out55.html');let pass=0,fail=0;const
     await p.evaluate(async()=>{const rows=[0,1,2].map(i=>({i,ad:'KURGU '+i,kimlik:'1000000000'+i,sirket:false,m:'',kef:[],x:{}}));await Store.savePortfolio('pA',{name:'Kurgu A',importedAt:'2026-11-01T10:00:00Z',count:3},rows);
       await Store.saveResearch({pid:'pA',idx:0,durum:'hacze',persons:[],companies:[]});document.querySelectorAll('.modal-bg').forEach(x=>x.remove());await openPortfolio('pA');showScreen('dosyalar')});await p.waitForTimeout(800);
     ok(await p.evaluate(()=>!document.querySelector('#menu summary').offsetParent),vp.width+': eski “Dosya ▾” menüsü gerçekten görünmüyor (sorunun kaynağı)');
-    await p.click('button.bn[data-scr="ayar"]:visible');await p.waitForTimeout(400);
+    if(await p.evaluate(()=>document.body.classList.contains('mb-on'))){await p.click('[data-mb-go="home"]');await p.waitForTimeout(300);await p.click('#mbOv [data-mb-x="ayar"]')}else await p.click('button.bn[data-scr="ayar"]:visible');await p.waitForTimeout(400);
     let r=await p.evaluate(()=>{const x=document.querySelector('.mn-box');return x?{vis:!!x.offsetParent,t:[...x.querySelectorAll('.mn-b')].map(b=>b.textContent),sum:x.querySelector('summary').textContent}:null});
     ok(r&&r.vis&&r.t.some(t=>/Durumlara göre dosya sil/.test(t))&&r.t.some(t=>/Yedek al/.test(t))&&r.t.some(t=>/Bu portföyü sil/.test(t))&&/Kurgu A/.test(r.sum),vp.width+': ☰ Ayarlar açılınca “📁 Dosya işlemleri” bölümünde menünün tamamı var',r);
     await p.click('.mn-b[data-mn="mPtClean"]');await p.waitForSelector('.pt-modal #ptK',{timeout:15000});
