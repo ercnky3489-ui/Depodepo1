@@ -26,6 +26,16 @@ const R1={pid:'pK',idx:1,durum:'',persons:[{id:'p1',ad:'KURGU İKİ',kimlik:'300
     const H=JSON.parse(run('web-liste',EXP,'--hepsi')).hedefler.map(h=>h.id);
     ok(H.length===4&&H.includes('tel_5321112233_r'+(JSON.parse(fs.readFileSync(AF,'utf8')).yeniden).toString(36))&&!H.some(x=>/5554443322/.test(x))&&H.some(x=>/^co_v1234567890_r/.test(x)),'“Hepsini yeniden ara”: aranmış tüm hedefler yeni belge kimliğiyle yeniden listede (reddedilen hariç, tur sınırı yok, eskiler silinmez)',H);
     fs.writeFileSync(AF,A0)}
+  /* Serper (Google, Türkiye) — sahte sunucu ayrı süreçte */
+  {const LOG=path.join(W,'sseen.jsonl');
+    const SRV=`const http=require('http'),fs=require('fs');http.createServer((q,r)=>{let b='';q.on('data',d=>b+=d).on('end',()=>{const J=JSON.parse(b);fs.appendFileSync(${JSON.stringify(LOG)},JSON.stringify({key:q.headers['x-api-key'],J})+'\\n');
+      const hit=/Kurgu/.test(J.q);r.writeHead(200,{'content-type':'application/json'});r.end(JSON.stringify(hit?{places:[{title:'Kurgu Lojistik',address:'İstanbul',phoneNumber:'0212 000 00 00',cid:'123'}],organic:[{title:'Kurgu Lojistik — firma rehberi',link:'https://rehber.example.com.tr/kurgu',snippet:'Kurgu Lojistik iletişim'},{title:'kötü',link:'javascript:x'}]}:{organic:[]}))})}).listen(0,function(){console.log(this.address().port)})`;
+    const sp=cp.spawn('node',['-e',SRV]);const port=await new Promise(r=>sp.stdout.once('data',d=>r(String(d).trim())));
+    const LF=path.join(W,'sl.json');fs.writeFileSync(LF,JSON.stringify({hedefler:[{id:'co_vS',kind:'sirket',q:'"Kurgu" lojistik',q2:'"1234567890"'},{id:'tel_5551110000',kind:'tel',q:'"0555 111 00 00"',q2:'"05551110000"'}]}));
+    const OF=path.join(W,'ss.json');fs.rmSync(OF,{force:true});const g=cp.spawnSync('node',[RUN,'serper-ara',EXP,LF,OF],{env:Object.assign({},process.env,{SERPER_URL:'http://127.0.0.1:'+port}),encoding:'utf8',timeout:30000});
+    let G=[];try{G=JSON.parse(fs.readFileSync(OF,'utf8'))}catch(e){}const seen=fs.readFileSync(LOG,'utf8').trim().split('\n').map(JSON.parse);
+    ok(g.status===0&&G.length===2&&G[0].kaynak==='serper-google'&&G[0].results.length===2&&/Tel: 0212/.test(G[0].results[0].snippet)&&G[0].results.every(x=>/^https:/.test(x.url))&&!G[1].results.length,'Serper: Google sonuçları + işletme kaydındaki telefon alınıyor, güvensiz bağlantı atıldı, boş hedef “sonuç yok”',{st:g.status,G,err:g.stderr});
+    ok(seen.length===3&&seen.every(x=>x.key==='anahtar'&&x.J.gl==='tr'&&x.J.hl==='tr')&&seen[2].J.q==='"05551110000"','Serper isteği: Türkiye (gl=tr, hl=tr), anahtar yer tutucu, boş çıkan numara ikinci biçimle arandı',seen.map(x=>x.J.q));sp.kill()}
   /* Gemini (Google arama) — sahte Gemini sunucusu ayrı süreçte (çalıştırıcı eşzamanlı curl kullanır): anahtar yer tutucu, gerçek kaynaklar alınır, “SONUÇ YOK” → boş, 401 → web aramasına geçiş */
   {const LOG=path.join(W,'gseen.jsonl'),F401=path.join(W,'g401');
     const SRV=`const http=require('http'),fs=require('fs');http.createServer((q,r)=>{let b='';q.on('data',d=>b+=d).on('end',()=>{const J=JSON.parse(b);const t=J.contents[0].parts[0].text;fs.appendFileSync(${JSON.stringify(LOG)},JSON.stringify({key:q.headers['x-goog-api-key'],t,tools:J.tools})+'\\n');

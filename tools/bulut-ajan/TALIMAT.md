@@ -52,12 +52,12 @@ Adımlar:
 2. `list` `osint_web` (limit 1000, `next_cursor` bitene kadar), `out_dir: "/tmp/bulut/export"`.
 3. `node tools/bulut-ajan/calistir.js web-liste /tmp/bulut/export [--hepsi] > /tmp/bulut/web_liste.json` → `hedefler` listesi (her hedefte `id`, `kind`, `q`, `q2`).
 4. Her hedef için arama yap:
-   - **Önce Gemini (Google arama):** `node tools/bulut-ajan/calistir.js gemini-ara /tmp/bulut/export /tmp/bulut/web_liste.json /tmp/bulut/web_sonuc.json`. Arama Google’da yapılır; anahtarı ağ vekili ekler (komuttaki “anahtar” yer tutucudur, gerçek anahtarı hiçbir yere yazma).
-     - Çıkış 0: tüm hedefler arandı → 5. adıma geç.
-     - Çıkış 5 (anahtar yok / yetkisiz) ya da 6 (kota, kısmen arandı): `/tmp/bulut/web_kalan.json` içindeki hedefleri aşağıdaki yolla ara (yeniden arama hedefleri bu dosyaya konmaz; Google gerektiği için sonraki tura kalırlar, raporda sayısını yaz) ve sonuçlarını `web_sonuc.json` dizisine ekle.
+   - **1) Serper (Google, Türkiye):** `node tools/bulut-ajan/calistir.js serper-ara /tmp/bulut/export /tmp/bulut/web_liste.json /tmp/bulut/web_sonuc.json`. Anahtarı ağ vekili ekler (komuttaki “anahtar” yer tutucudur, gerçek anahtarı hiçbir yere yazma). Çıkış 0 → 5. adıma geç.
+   - **2) Gemini (Google arama):** Serper çıkışı 5 ya da 6 ise kalanları Gemini ile ara: `node tools/bulut-ajan/calistir.js gemini-ara /tmp/bulut/export /tmp/bulut/web_kalan.json /tmp/bulut/web_sonuc.json` (sonuçları aynı dosyaya ekler). Çıkış 0 → 5. adıma geç.
+     - Gemini de 5 ya da 6 ile çıkarsa `/tmp/bulut/web_kalan.json` içindeki hedefleri aşağıdaki yolla ara (yeniden arama hedefleri bu dosyaya konmaz; Google gerektiği için sonraki tura kalırlar, raporda sayısını yaz) ve sonuçlarını `web_sonuc.json` dizisine ekle.
    - Kalanlar için: `cx` doluysa ve Google API kullanılabiliyorsa: `curl -s -G -H "X-Goog-Api-Key: anahtar" "https://www.googleapis.com/customsearch/v1" --data-urlencode "cx=<cx>" --data-urlencode "q=<q>" --data-urlencode "num=5" --data-urlencode "gl=tr" --data-urlencode "hl=tr"` (anahtarı ağ vekili ekler). Yanıttaki `items[].title / link / snippet` → `kaynak: "google-api"`. 401/403/429 verirse API’yi bu turda bırak.
    - Aksi halde WebSearch aracıyla `q` sorgusunu ara; ilk en çok 5 sonucun başlık, adres ve özetini al → `kaynak: "websearch"`. `q` boşsa `q2` ile bir kez daha ara. WebSearch ABD merkezlidir, Türkiye’deki küçük işletmeleri çoğu zaman bulamaz.
-   - Sonuç dosyası biçimi: `[{"id":"<hedef id>","kaynak":"gemini-google|google-api|websearch","results":[{"title":"...","url":"...","snippet":"..."}]}]` (sonuç yoksa `results: []`).
+   - Sonuç dosyası biçimi: `[{"id":"<hedef id>","kaynak":"serper-google|gemini-google|google-api|websearch","results":[{"title":"...","url":"...","snippet":"..."}]}]` (sonuç yoksa `results: []`).
 5. `node tools/bulut-ajan/calistir.js web-yazim /tmp/bulut/export /tmp/bulut/web_sonuc.json /tmp/bulut/web` → `/tmp/bulut/web/web_paket_*.json`.
 6. Her paket için ArtifactData `action: "batch"`, `writes` = dosyanın içeriği (olduğu gibi). Reddedilen paketi yeniden deneme; raporla.
-7. Rapora yalnız sayıları ekle: aranan telefon, aranan şirket, sonuç bulunan, yazılan öneri, kullanılan kaynak (gemini-google / google-api / websearch). Numara, ünvan ya da sonuç metni rapora yazılmaz.
+7. Rapora yalnız sayıları ekle: aranan telefon, aranan şirket, sonuç bulunan, yazılan öneri, kullanılan kaynak (serper-google / gemini-google / google-api / websearch). Numara, ünvan ya da sonuç metni rapora yazılmaz.

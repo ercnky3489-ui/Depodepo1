@@ -110,6 +110,27 @@ function webListe(exp,hepsi){const A=webAyar(exp);if(!A.on)return {acik:false,he
   for(const [id,t] of [...T.entries()])if(Q.tel.has(t.tel))T.delete(id);
   const cos=[...C.values()].filter(c=>!c._k.some(k=>Q.co.has(k)||notlu.has(k))&&(A.yeniden||!fs.existsSync(path.join(wdir,c.id+'.json')))).map(c=>{const o=Object.assign({},c);delete o._k;if(A.yeniden)o.id=yeniId(o.id);return o});
   const mt=hepsi?1e9:A.maxTel,mc=hepsi?1e9:A.maxCo;return {acik:true,cx:A.cx,hedefler:[...[...T.values()].slice(0,mt),...cos.slice(0,mc)]}}
+/* Serper.dev (Google sonuçları, Türkiye: gl=tr hl=tr) — birinci arama kaynağı. Anahtar yer tutucu; ağ vekili X-API-KEY başlığına gerçeğini ekler.
+   node calistir.js serper-ara <disari_aktarim> <web_liste.json> <web_sonuc.json>  → 0 tamam · 5 anahtar yok/yetkisiz · 6 kredi/kota bitti (kalanlar web_kalan.json) */
+function serperTek(q){const url=(process.env.SERPER_URL||'https://google.serper.dev')+'/search';const body=JSON.stringify({q,gl:'tr',hl:'tr',num:10});
+  let out;try{out=require('child_process').execFileSync('curl',['-sS','-m','40','-o','-','-w','\n%{http_code}','-H','content-type: application/json','-H','X-API-KEY: anahtar','--data-binary','@-',url],{input:body,encoding:'utf8',maxBuffer:8<<20})}catch(e){return {code:0,err:String(e.message||e).slice(0,200)}}
+  const i=out.lastIndexOf('\n');const code=parseInt(out.slice(i+1))||0;let J=null;try{J=JSON.parse(out.slice(0,i))}catch(e){}
+  if(code!==200||!J)return {code,err:J&&J.message?String(J.message).slice(0,200):'yanıt okunamadı'};
+  const res=[];const kg=J.knowledgeGraph;if(kg&&(kg.title||kg.website)){const at=kg.attributes||{};const ek=Object.entries(at).filter(([k])=>/telefon|phone|adres|address/i.test(k)).map(([k,v])=>k+': '+v).join(' · ');res.push({title:String(kg.title||''),url:String(kg.website||''),snippet:[kg.type,kg.description,ek].filter(Boolean).join(' — ')})}
+  (J.places||[]).slice(0,3).forEach(p=>res.push({title:String(p.title||''),url:p.website?String(p.website):(p.cid?'https://www.google.com/maps?cid='+encodeURIComponent(p.cid):''),snippet:[p.category,p.address,p.phoneNumber?'Tel: '+p.phoneNumber:''].filter(Boolean).join(' · ')}));
+  (J.organic||[]).forEach(o=>res.push({title:String(o.title||''),url:String(o.link||''),snippet:String(o.snippet||'')}));
+  return {code,results:res.filter(r=>/^https:\/\//.test(r.url)).slice(0,6)}}
+function webEkle(outF,S){let old=[];try{old=JSON.parse(fs.readFileSync(outF,'utf8'))}catch(e){}const ids=new Set(S.map(x=>x.id));fs.writeFileSync(outF,JSON.stringify([...old.filter(x=>!ids.has(x.id)),...S]))}
+function serperAra(exp,listF,outF){const L=webRd(listF)||{hedefler:[]};const S=[],kalan=[];let stop=0,hata=0,code0=0;
+  for(const h of (L.hedefler||[])){if(stop){kalan.push(h);continue}
+    let r=serperTek(h.q);if(r.code===200&&!r.results.length&&h.q2)r=serperTek(h.q2);
+    if(r.code===401||r.code===403){code0=code0||r.code;stop=1;kalan.push(h);continue}
+    if(r.code===429||r.code===402||(r.code===400&&/credit/i.test(r.err||''))){stop=1;kalan.push(h);continue}
+    if(r.code!==200){hata++;kalan.push(h);continue}
+    S.push({id:h.id,kaynak:'serper-google',results:r.results})}
+  webEkle(outF,S);fs.writeFileSync(path.join(path.dirname(outF),'web_kalan.json'),JSON.stringify({hedefler:kalan}));
+  console.log(`Serper (Google): ${S.length} hedef arandı, ${S.filter(x=>x.results.length).length} sonuçlu · kalan: ${kalan.length}${hata?' · hata '+hata:''}${stop?' · '+(code0?'anahtar yok/yetkisiz':'kredi/kota bitti')+', durdu':''}`);
+  process.exit(stop&&!S.length&&code0?5:stop?6:0)}
 /* Gemini + Google Search temellendirme: arama Google’da yapılır, yalnız Gemini’nin döndürdüğü gerçek kaynak sayfaları (groundingChunks) alınır.
    Anahtar kodda / veritabanında yok: istek başlığındaki “anahtar” yer tutucudur, ağ vekili gerçek anahtarı ekler (ortam › Network secrets).
    node calistir.js gemini-ara <disari_aktarim> <web_liste.json> <web_sonuc.json>  → çıkış 0 tamam · 5 anahtar yok/yetkisiz (hiç arama yok) · 6 kota (kalanlar web_kalan.json) */
@@ -127,18 +148,18 @@ function geminiAra(exp,listF,outF){const L=webRd(listF)||{hedefler:[]};const A=w
   const S=[],kalan=[];let stop=0,hata=0;
   for(const h of (L.hedefler||[])){if(stop){kalan.push(h);continue}
     let r=geminiTek(model,h.q,h.kind);if(r.code===200&&!r.results.length&&h.q2)r=geminiTek(model,h.q2,h.kind);
-    if(r.code===401||r.code===403||(r.code===400&&/api key/i.test(r.err||''))){if(!S.length){console.error('Gemini: anahtar yok ya da yetkisiz ('+r.code+'). Web aramasına geçin.');fs.writeFileSync(outF,'[]');fs.writeFileSync(path.join(path.dirname(outF),'web_kalan.json'),JSON.stringify({hedefler:(L.hedefler||[]).filter(h=>!/_r[0-9a-z]+$/.test(h.id))}));process.exit(5)}stop=1;kalan.push(h);continue}
+    if(r.code===401||r.code===403||(r.code===400&&/api key/i.test(r.err||''))){if(!S.length){console.error('Gemini: anahtar yok ya da yetkisiz ('+r.code+'). Web aramasına geçin.');webEkle(outF,[]);fs.writeFileSync(path.join(path.dirname(outF),'web_kalan.json'),JSON.stringify({hedefler:(L.hedefler||[]).filter(h=>!/_r[0-9a-z]+$/.test(h.id))}));process.exit(5)}stop=1;kalan.push(h);continue}
     if(r.code===429){stop=1;kalan.push(h);continue}
     if(r.code!==200){hata++;kalan.push(h);continue}
     S.push({id:h.id,kaynak:'gemini-google',results:r.results})}
   /* Yeniden arama hedefleri (“_r” kimlikli) yalnız Google’la (Gemini) aranır: Gemini kotası / yetkisi yoksa web aramasına bırakılmaz, sonraki tura kalır. */
   const bek=kalan.filter(h=>/_r[0-9a-z]+$/.test(h.id));const kal2=kalan.filter(h=>!/_r[0-9a-z]+$/.test(h.id));
-  fs.writeFileSync(outF,JSON.stringify(S));fs.writeFileSync(path.join(path.dirname(outF),'web_kalan.json'),JSON.stringify({hedefler:kal2,bekleyen_yeniden:bek.length}));
+  webEkle(outF,S);fs.writeFileSync(path.join(path.dirname(outF),'web_kalan.json'),JSON.stringify({hedefler:kal2,bekleyen_yeniden:bek.length}));
   console.log(`Gemini (Google): ${S.length} hedef arandı, ${S.filter(x=>x.results.length).length} sonuçlu · kalan (web aramasıyla): ${kal2.length}${bek.length?' · yeniden arama bekliyor (Google gerekli): '+bek.length:''}${hata?' · hata '+hata:''}${stop?' · kota/yetki nedeniyle durdu':''} · model ${model}`);process.exit(stop?6:0)}
 function webYazim(exp,sonF,out){const L=webListe(exp,true);const H=new Map(L.hedefler.map(h=>[h.id,h]));const S=webRd(sonF)||[];const writes=[];let atl=0;fs.mkdirSync(out,{recursive:true});
   const tr=(s,n)=>String(s||'').replace(/\s+/g,' ').trim().slice(0,n);
   for(const s of S){const h=H.get(s.id);if(!h){atl++;continue}const res=(Array.isArray(s.results)?s.results:[]).filter(r=>r&&/^https?:\/\//.test(String(r.url||''))).slice(0,5).map(r=>({title:tr(r.title,160),url:tr(r.url,400),snippet:tr(r.snippet,320)}));
-    const doc=Object.assign({},h,{results:res,kaynak:['google-api','gemini-google'].includes(s.kaynak)?s.kaynak:'websearch',t:Date.now(),status:res.length?'onay':'sonuc-yok'});const f=path.join(out,'web_'+h.id+'.json');fs.writeFileSync(f,JSON.stringify(doc));writes.push({op:'set',collection:'osint_web',doc_id:h.id,file_path:f})}
+    const doc=Object.assign({},h,{results:res,kaynak:['google-api','gemini-google','serper-google'].includes(s.kaynak)?s.kaynak:'websearch',t:Date.now(),status:res.length?'onay':'sonuc-yok'});const f=path.join(out,'web_'+h.id+'.json');fs.writeFileSync(f,JSON.stringify(doc));writes.push({op:'set',collection:'osint_web',doc_id:h.id,file_path:f})}
   const files=paketle(writes,out,'web_paket_');
   const o={yazilacak:writes.length,paketler:files,atlanan:atl};console.log(`Web araması: ${writes.length} öneri belgesi, ${files.length} paket · listede olmayan (atlandı): ${atl}`);return o}
 (async()=>{const [cmd,...a]=process.argv.slice(2);
@@ -150,6 +171,7 @@ function webYazim(exp,sonF,out){const L=webListe(exp,true);const H=new Map(L.hed
   if(cmd==='web-liste'){console.log(JSON.stringify(webListe(a[0],a.includes('--hepsi')),null,1));return}
   if(cmd==='web-yazim'){webYazim(...a);return}
   if(cmd==='gemini-ara'){geminiAra(...a);return}
+  if(cmd==='serper-ara'){serperAra(...a);return}
   if(cmd==='karsilastir'){const same=karsilastir(a[0],a[1]);console.log(same?'AYNI':'FARKLI');process.exit(same?0:3)}
-  console.error('komutlar: calistir | ag-liste | yok-isaretle | gereken | yazim | karsilastir | web-liste | gemini-ara | web-yazim');process.exit(2)})().catch(e=>{console.error(e);process.exit(1)});
+  console.error('komutlar: calistir | ag-liste | yok-isaretle | gereken | yazim | karsilastir | web-liste | serper-ara | gemini-ara | web-yazim');process.exit(2)})().catch(e=>{console.error(e);process.exit(1)});
 if(typeof module!=='undefined')module.exports={walk,canon,karsilastir};
