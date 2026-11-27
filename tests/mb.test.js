@@ -18,6 +18,8 @@ const APP=path.resolve(process.argv[2]||'../out55.html');let pass=0,fail=0;const
   r=await p.evaluate(()=>({ov:MB.ov,t:document.querySelector('#mbOv .mb-hero-t').textContent,pst:document.querySelectorAll('#mbOv .mb-sec:first-of-type .mb-pst').length,brand:document.querySelector('#mbOv .mb-wm').textContent,svg:!!document.querySelector('#mbOv svg.mb-logo'),pressed:document.querySelector('[data-mb-go="home"]').getAttribute('aria-pressed')}));
   ok(r.ov==='home'&&/2 föy hacze/.test(r.t)&&r.pressed==='true','Ana Sayfa: hacze çıkılabilir föy sayısı doğru (2) ve sekme seçili',r);
   ok(r.brand==='İcraSaha'&&r.svg,'Ana Sayfa üst bandında terazi logosu ve İcraSaha adı',r);
+  r=await p.evaluate(()=>{const c=document.querySelector('#mbOv .mb-lc[data-mb-open="0"]');return c?{rows:[...c.querySelectorAll('.mb-lc-r')].map(x=>x.textContent.replace(/\s+/g,' ').trim()),bl:!!c.querySelector('.mb-lc-r i.bl')}:null});
+  ok(r&&r.rows.length===4&&/^GİB\s?FAAL/.test(r.rows[0])&&/^SGK/.test(r.rows[1])&&/^MERSİS/.test(r.rows[2])&&/^Levha/.test(r.rows[3])&&r.bl,'Borçlu kartı (E): GİB · SGK · MERSİS · Levha ışıkları; faal GİB yanıp sönüyor',r);
   r=await p.evaluate(()=>{const f=[...document.querySelectorAll('#mbOv > section')][0];return {cls:f&&f.className,on:[...document.querySelectorAll('#mbOv .mb-pk.on')].map(x=>x.textContent.replace(/\s+/g,' ').trim())}});
   ok(r.cls==='mb-pick'&&r.on.length===1&&/Kurgu A/.test(r.on[0])&&/SEÇİLİ/.test(r.on[0]),'Portföy seçici ana sayfanın en üstünde; açık portföy “SEÇİLİ”',r);
   r=await p.evaluate(async()=>{const bak=[HX.bpf,window.hxSetMode,window.hxOpenEmbed,HX.on,HX.ready,HX.data];const calls=[];HX.bpf={name:'İstanbul Varlık · HANSOFT',alacakli:'İstanbul Varlık',count:5};
