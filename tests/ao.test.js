@@ -40,6 +40,8 @@ const APP=path.resolve(process.argv[2]||'../out55.html');const TH=path.join(__di
   r=await p.evaluate(()=>{const t=document.getElementById('aoPanel').textContent.replace(/\s+/g,' ');return {t:t.slice(0,600),n:document.querySelectorAll('#aoAud li').length,rows:document.querySelectorAll('#aoAud li small').length}});
   ok(/Başarı oranı/.test(r.t)&&/Ortalama süre/.test(r.t)&&/Yetki kapsamı/.test(r.t)&&/sorgulanmadı/.test(r.t)&&/Veri aldığı: SGK okuyucu, MERSİS okuyucu, Levha okuyucu, TSG okuyucu/.test(r.t),'Profil paneli: başarı oranı, ortalama süre, yetki kapsamı, veri aldığı ajanlar',r.t.slice(0,300));
   ok(r.n>=1&&!/denetim kaydı yok/.test(r.t),'Son 10 işlem denetim kaydından geliyor ('+r.n+' kayıt)',r);
+  await p.waitForFunction(()=>{const e=document.getElementById('aoRun');return e&&!/Okunuyor/.test(e.textContent)},null,{timeout:10000});r=await p.evaluate(()=>document.getElementById('aoRun').textContent);
+  ok(/COMPLETED|QUEUED|FAILED|WAITING/.test(r)&&/run_lvkontrol_/.test(r),'Profilde bugünkü çalışma kaydı (görev kaydından, görev no ile)',r);
   await p.evaluate(()=>document.querySelector('.ao-stage').scrollIntoView({block:'center'}));await p.waitForTimeout(300);
   await p.click('.ao-dep[data-ao-dep="gib"]');await p.waitForFunction(()=>!AO.fly,null,{timeout:30000});await p.waitForTimeout(300);
   const kp=await p.evaluate(()=>{const T=AO.T;const d=AO.desks.find(x=>x.ag==='gib');const rc=AO.canvas.getBoundingClientRect();const ray=new T.Raycaster();const hits=AO.desks.map(x=>x.hit);d.hit.updateWorldMatrix(true,false);
