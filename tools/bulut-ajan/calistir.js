@@ -71,7 +71,7 @@ function karsilastir(a,b){const A=JSON.parse(fs.readFileSync(a,'utf8')),B=JSON.p
 const webRd=f=>{try{return JSON.parse(fs.readFileSync(f,'utf8'))}catch(e){return null}};
 const webTel=s=>{const d=String(s||'').replace(/\D/g,'');return d.length>=10?d.slice(-10):''};
 const webFmt=d=>'0'+d.slice(0,3)+' '+d.slice(3,6)+' '+d.slice(6,8)+' '+d.slice(8);
-function webAyar(exp){const a=webRd(path.join(exp,'osint_web','_ayar.json'))||{};return {on:a.on===true,maxTel:Math.min(200,+a.maxTel||25),maxCo:Math.min(200,+a.maxCo||15),cx:String(a.cx||'').replace(/[^\w:-]/g,'').slice(0,80),model:String(a.model||'').replace(/[^\w.-]/g,'').slice(0,60)}}
+function webAyar(exp){const a=webRd(path.join(exp,'osint_web','_ayar.json'))||{};return {on:a.on===true,maxTel:Math.min(200,+a.maxTel||25),maxCo:Math.min(200,+a.maxCo||15),cx:String(a.cx||'').replace(/[^\w:-]/g,'').slice(0,80),model:String(a.model||'').replace(/[^\w.-]/g,'').slice(0,60),yeniden:+a.yeniden||0}}
 /* Daha önce sorgulanan hiçbir hedef yeniden aranmaz:
    - telefon: numara (son 10 hane) bir kez; föyde “sorgulandı” (gs) ya da osint_web’de herhangi bir belgesi (onay / eklendi / red / sonuç yok) varsa atlanır.
    - şirket: VKN varsa VKN’ye, yoksa sadeleştirilmiş ünvana göre tek hedef (tüm föyler tek öneride); osint_web’de aynı VKN / ünvanla belge varsa
@@ -94,22 +94,22 @@ function webCoQ(un,v){const temiz=webTemiz(un);const W=temiz.toLocaleUpperCase('
   if(!core.length||core.join('').length<3)return null;
   if(core.length===1&&!sek.length){const full=temiz.toLocaleUpperCase('tr').replace(/[^0-9A-ZÇĞİÖŞÜ ]+/g,' ').split(/\s+/).filter(w=>w&&!WEB_HUKUK.has(w)).slice(0,3);core.splice(0,1,...full)}
   return {q:'"'+core.map(webTitle).join(' ')+'"'+(sek.length?' '+sek.map(w=>w.toLocaleLowerCase('tr')).join(' '):''),q2:v?'"'+v+'"':'"'+temiz+'"',temiz}}
-function webSorgulanan(wdir){const tel=new Set(),co=new Set();if(!fs.existsSync(wdir))return {tel,co};
-  for(const f of fs.readdirSync(wdir).filter(f=>f.endsWith('.json')&&f!=='_ayar.json')){let d=webRd(path.join(wdir,f));if(!d)continue;if(d.data&&!d.kind)d=d.data;if(d.status==='sonuc-yok'&&!(d.qv>=WEB_QV))continue;
+function webSorgulanan(wdir,yeniden){const tel=new Set(),co=new Set();if(!fs.existsSync(wdir))return {tel,co};
+  for(const f of fs.readdirSync(wdir).filter(f=>f.endsWith('.json')&&f!=='_ayar.json')){let d=webRd(path.join(wdir,f));if(!d)continue;if(d.data&&!d.kind)d=d.data;if(d.status==='sonuc-yok'&&!(d.qv>=WEB_QV))continue;if(yeniden&&(+d.t||0)<yeniden&&!['eklendi','red'].includes(d.status))continue;
     if(d.kind==='tel'||/^tel_/.test(f)){const t=webTel(d.tel||f.slice(4,-5));if(t)tel.add(t)}
     else{const v=webVkn(d.vkn)||((String(d.q||'').match(/"(\d{10})"/)||[])[1]||'');if(v)co.add('v'+v);const u=webUn(d.unvan);if(u)co.add('u'+u)}}
   return {tel,co}}
-function webListe(exp){const A=webAyar(exp);if(!A.on)return {acik:false,hedefler:[]};const rdir=path.join(exp,'research');const wdir=path.join(exp,'osint_web');
-  const Q=webSorgulanan(wdir);const T=new Map(),C=new Map(),notlu=new Set();
+function webListe(exp,hepsi){const A=webAyar(exp);if(!A.on)return {acik:false,hedefler:[]};const rdir=path.join(exp,'research');const wdir=path.join(exp,'osint_web');
+  const Q=webSorgulanan(wdir,A.yeniden);const yeniId=id=>fs.existsSync(path.join(wdir,id+'.json'))?id+'_r'+(A.yeniden||Date.now()).toString(36):id;const T=new Map(),C=new Map(),notlu=new Set();
   if(fs.existsSync(rdir))for(const f of fs.readdirSync(rdir).filter(f=>f.endsWith('.json')).sort()){const R=webRd(path.join(rdir,f));if(!R||!R.pid)continue;
-    (R.persons||[]).forEach(p=>(p.telefonlar||[]).forEach(t=>{const d=webTel(t.tel);if(!d)return;if(t.gs){Q.tel.add(d);return}if(Q.tel.has(d))return;const id=(fs.existsSync(path.join(wdir,'tel_'+d+'.json'))?'tel2_':'tel_')+d;if(!T.has(id))T.set(id,{id,kind:'tel',q:'"'+webFmt(d)+'"',q2:'"0'+d+'"',tel:d,qv:WEB_QV,refs:[]});T.get(id).refs.push({pid:R.pid,i:R.idx,entId:p.id||'',tid:t.id||''})}));
+    (R.persons||[]).forEach(p=>(p.telefonlar||[]).forEach(t=>{const d=webTel(t.tel);if(!d)return;if(t.gs){Q.tel.add(d);return}if(Q.tel.has(d))return;const id=A.yeniden?yeniId('tel_'+d):(fs.existsSync(path.join(wdir,'tel_'+d+'.json'))?'tel2_':'tel_')+d;if(!T.has(id))T.set(id,{id,kind:'tel',q:'"'+webFmt(d)+'"',q2:'"0'+d+'"',tel:d,qv:WEB_QV,refs:[]});T.get(id).refs.push({pid:R.pid,i:R.idx,entId:p.id||'',tid:t.id||''})}));
     (R.companies||[]).forEach(c=>{const un=String(c.unvan||'').trim();if(un.length<3)return;const v=webVkn(c.vkn),u=webUn(un);const key=v?'v'+v:'u'+u;if(!u&&!v)return;
       const g=c.src&&c.src.google;if(g&&(g.s||String(g.n||'').trim())){notlu.add(key);if(u)notlu.add('u'+u);return}
       if(!C.has(key)){const Qc=webCoQ(un,v);if(!Qc)return;C.set(key,{id:'co_'+(v?'v'+v:'u'+webH(u)),kind:'sirket',q:Qc.q,q2:Qc.q2,unvan:Qc.temiz||un,vkn:v,qv:WEB_QV,_k:[key,'u'+u],refs:[]})}
       C.get(key).refs.push({pid:R.pid,i:R.idx,entId:c.id||''})})}
   for(const [id,t] of [...T.entries()])if(Q.tel.has(t.tel))T.delete(id);
-  const cos=[...C.values()].filter(c=>!c._k.some(k=>Q.co.has(k)||notlu.has(k))&&!fs.existsSync(path.join(wdir,c.id+'.json'))).map(c=>{const o=Object.assign({},c);delete o._k;return o});
-  return {acik:true,cx:A.cx,hedefler:[...[...T.values()].slice(0,A.maxTel),...cos.slice(0,A.maxCo)]}}
+  const cos=[...C.values()].filter(c=>!c._k.some(k=>Q.co.has(k)||notlu.has(k))&&(A.yeniden||!fs.existsSync(path.join(wdir,c.id+'.json')))).map(c=>{const o=Object.assign({},c);delete o._k;if(A.yeniden)o.id=yeniId(o.id);return o});
+  const mt=hepsi?1e9:A.maxTel,mc=hepsi?1e9:A.maxCo;return {acik:true,cx:A.cx,hedefler:[...[...T.values()].slice(0,mt),...cos.slice(0,mc)]}}
 /* Gemini + Google Search temellendirme: arama Google’da yapılır, yalnız Gemini’nin döndürdüğü gerçek kaynak sayfaları (groundingChunks) alınır.
    Anahtar kodda / veritabanında yok: istek başlığındaki “anahtar” yer tutucudur, ağ vekili gerçek anahtarı ekler (ortam › Network secrets).
    node calistir.js gemini-ara <disari_aktarim> <web_liste.json> <web_sonuc.json>  → çıkış 0 tamam · 5 anahtar yok/yetkisiz (hiç arama yok) · 6 kota (kalanlar web_kalan.json) */
@@ -133,7 +133,7 @@ function geminiAra(exp,listF,outF){const L=webRd(listF)||{hedefler:[]};const A=w
     S.push({id:h.id,kaynak:'gemini-google',results:r.results})}
   fs.writeFileSync(outF,JSON.stringify(S));fs.writeFileSync(path.join(path.dirname(outF),'web_kalan.json'),JSON.stringify({hedefler:kalan}));
   console.log(`Gemini (Google): ${S.length} hedef arandı, ${S.filter(x=>x.results.length).length} sonuçlu · kalan (web aramasıyla): ${kalan.length}${hata?' · hata '+hata:''}${stop?' · kota/yetki nedeniyle durdu':''} · model ${model}`);process.exit(stop?6:0)}
-function webYazim(exp,sonF,out){const L=webListe(exp);const H=new Map(L.hedefler.map(h=>[h.id,h]));const S=webRd(sonF)||[];const writes=[];let atl=0;fs.mkdirSync(out,{recursive:true});
+function webYazim(exp,sonF,out){const L=webListe(exp,true);const H=new Map(L.hedefler.map(h=>[h.id,h]));const S=webRd(sonF)||[];const writes=[];let atl=0;fs.mkdirSync(out,{recursive:true});
   const tr=(s,n)=>String(s||'').replace(/\s+/g,' ').trim().slice(0,n);
   for(const s of S){const h=H.get(s.id);if(!h){atl++;continue}const res=(Array.isArray(s.results)?s.results:[]).filter(r=>r&&/^https?:\/\//.test(String(r.url||''))).slice(0,5).map(r=>({title:tr(r.title,160),url:tr(r.url,400),snippet:tr(r.snippet,320)}));
     const doc=Object.assign({},h,{results:res,kaynak:['google-api','gemini-google'].includes(s.kaynak)?s.kaynak:'websearch',t:Date.now(),status:res.length?'onay':'sonuc-yok'});const f=path.join(out,'web_'+h.id+'.json');fs.writeFileSync(f,JSON.stringify(doc));writes.push({op:'set',collection:'osint_web',doc_id:h.id,file_path:f})}
@@ -145,7 +145,7 @@ function webYazim(exp,sonF,out){const L=webListe(exp);const H=new Map(L.hedefler
   if(cmd==='yok-isaretle'){fs.appendFileSync(path.join(a[0],'.yok'),a.slice(1).join('\n')+'\n');return}
   if(cmd==='gereken'){console.log(JSON.stringify(gereken(a[0]),null,1));return}
   if(cmd==='yazim'){const o=yazim(...a);process.exit(o.surum_eksik.length?4:0)}
-  if(cmd==='web-liste'){console.log(JSON.stringify(webListe(a[0]),null,1));return}
+  if(cmd==='web-liste'){console.log(JSON.stringify(webListe(a[0],a.includes('--hepsi')),null,1));return}
   if(cmd==='web-yazim'){webYazim(...a);return}
   if(cmd==='gemini-ara'){geminiAra(...a);return}
   if(cmd==='karsilastir'){const same=karsilastir(a[0],a[1]);console.log(same?'AYNI':'FARKLI');process.exit(same?0:3)}

@@ -21,6 +21,11 @@ const R1={pid:'pK',idx:1,durum:'',persons:[{id:'p1',ad:'KURGU İKİ',kimlik:'300
   ok(D['tel_5321112233'].status==='onay'&&D['tel_5321112233'].results.length===1&&D['co_v1234567890'].status==='sonuc-yok'&&D['co_v1234567890'].kaynak==='google-api'&&D['tel2_5559990011'].qv===2&&D['tel2_5559990011'].q2,'Sonuçlar öneri olarak bekliyor; güvensiz bağlantı atıldı; sonuç çıkmayan şirket “sonuç yok”',D);
   for(const w of P)fs.copyFileSync(w.file_path,path.join(EXP,'osint_web',w.doc_id+'.json'));
   L=JSON.parse(run('web-liste',EXP));ok(!L.hedefler.length,'Sorgulanan tekrar sorgulanmıyor: yazımdan sonra liste boş (sonuç çıkmayanlar dahil)',L.hedefler.map(h=>h.id));
+  {const AF=path.join(EXP,'osint_web','_ayar.json');const A0=fs.readFileSync(AF,'utf8');wj(AF,Object.assign(JSON.parse(A0),{yeniden:Date.now()+1000,maxTel:1,maxCo:1}));
+    wj(path.join(EXP,'osint_web','tel_5554443322.json'),{kind:'tel',tel:'5554443322',status:'red',t:1});
+    const H=JSON.parse(run('web-liste',EXP,'--hepsi')).hedefler.map(h=>h.id);
+    ok(H.length===4&&H.includes('tel_5321112233_r'+(JSON.parse(fs.readFileSync(AF,'utf8')).yeniden).toString(36))&&!H.some(x=>/5554443322/.test(x))&&H.some(x=>/^co_v1234567890_r/.test(x)),'“Hepsini yeniden ara”: aranmış tüm hedefler yeni belge kimliğiyle yeniden listede (reddedilen hariç, tur sınırı yok, eskiler silinmez)',H);
+    fs.writeFileSync(AF,A0)}
   /* Gemini (Google arama) — sahte Gemini sunucusu ayrı süreçte (çalıştırıcı eşzamanlı curl kullanır): anahtar yer tutucu, gerçek kaynaklar alınır, “SONUÇ YOK” → boş, 401 → web aramasına geçiş */
   {const LOG=path.join(W,'gseen.jsonl'),F401=path.join(W,'g401');
     const SRV=`const http=require('http'),fs=require('fs');http.createServer((q,r)=>{let b='';q.on('data',d=>b+=d).on('end',()=>{const J=JSON.parse(b);const t=J.contents[0].parts[0].text;fs.appendFileSync(${JSON.stringify(LOG)},JSON.stringify({key:q.headers['x-goog-api-key'],t,tools:J.tools})+'\\n');

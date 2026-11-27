@@ -43,13 +43,14 @@ Kurallar (yukarıdaki kurallara ek):
 - Sorguda **kişi adı, TCKN veya adres kullanma**. Yalnız `web-liste` çıktısındaki hazır sorgu (`q`) aynen kullanılır.
 - Sonuçlar föye yazılmaz; yalnız `osint_web` öneri belgeleri oluşturulur. Kullanıcı uygulamada “Onay bekleyenler › Web araması” bölümünden onaylar ya da reddeder.
 - Bu bölüm ana yazımdan bağımsızdır: yalnız yeni `osint_web` belgeleri oluşturur, hiçbir mevcut belgenin üzerine yazmaz. Ana yazım (7–8. adım) başarısız olsa bile, `research` dışa aktarımı tamamsa bu bölümü çalıştır; raporda iki sonucu ayrı yaz.
+- Tetikleyici mesajı “hepsini yeniden ara” derse `web-liste` komutuna `--hepsi` ekle (tur sınırı uygulanmaz). Yeniden arama, kullanıcının uygulamadan verdiği “yeniden ara” zamanından (`_ayar.yeniden`) önce aranmış ve föye eklenmemiş / reddedilmemiş tüm hedefleri kapsar; eski kayıtlar silinmez, yeni sonuçlar ayrı belge olarak yazılır.
 - `web-liste` bir turda **yalnız bir kez** çalıştırılır; yazımdan sonra yeniden çalıştırıp yeni hedef arama. Tetikleyici mesajı daha düşük bir sınır verirse (ör. “en çok 5 telefon ve 3 şirket”) hedef listesini o sayıya kısalt.
 - Hedef başına en çok bir arama. Toplam arama sayısı `web-liste` çıktısındaki hedef sayısını geçmez.
 
 Adımlar:
 1. `get` `osint_web/_ayar`, `out_dir: "/tmp/bulut/export"`. Belge yoksa ya da `on` true değilse bu bölümü atla ve raporda “web araması kapalı” yaz.
 2. `list` `osint_web` (limit 1000, `next_cursor` bitene kadar), `out_dir: "/tmp/bulut/export"`.
-3. `node tools/bulut-ajan/calistir.js web-liste /tmp/bulut/export > /tmp/bulut/web_liste.json` → `hedefler` listesi (her hedefte `id`, `kind`, `q`, `q2`).
+3. `node tools/bulut-ajan/calistir.js web-liste /tmp/bulut/export [--hepsi] > /tmp/bulut/web_liste.json` → `hedefler` listesi (her hedefte `id`, `kind`, `q`, `q2`).
 4. Her hedef için arama yap:
    - **Önce Gemini (Google arama):** `node tools/bulut-ajan/calistir.js gemini-ara /tmp/bulut/export /tmp/bulut/web_liste.json /tmp/bulut/web_sonuc.json`. Arama Google’da yapılır; anahtarı ağ vekili ekler (komuttaki “anahtar” yer tutucudur, gerçek anahtarı hiçbir yere yazma).
      - Çıkış 0: tüm hedefler arandı → 5. adıma geç.
