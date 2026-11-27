@@ -1,0 +1,43 @@
+/* Faz 5 · OSINT ajanı + ajan → araştırma modülü bağlantısı — kurgusal veri. node os.test.js <app.html> */
+const {chromium}=require('playwright');const fs=require('fs'),path=require('path'),http=require('http');
+const APP=path.resolve(process.argv[2]||'../out55.html');let pass=0,fail=0;const ok=(c,m,x)=>{if(c){pass++;console.log('  ✓ '+m)}else{fail++;console.log('  ✗ '+m+(x!==undefined?' → '+JSON.stringify(x).slice(0,700):''))}};
+(async()=>{const html='<!doctype html><html><head><meta charset=utf8></head><body>'+fs.readFileSync(APP,'utf8')+'</body></html>';
+  const srv=http.createServer((q,r)=>{r.writeHead(200,{'content-type':'text/html; charset=utf-8'});r.end(html)}).listen(0);await new Promise(r=>srv.once('listening',r));const U='http://127.0.0.1:'+srv.address().port+'/';
+  const b=await chromium.launch();const errs=[];const ext=[];const p=await b.newPage({viewport:{width:1400,height:900}});p.on('pageerror',e=>errs.push(e.message));
+  await p.route('**/*',r=>{const u=r.request().url();if(u.startsWith(U))return r.continue();if(!/fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net/.test(u))ext.push(u);return r.abort()});
+  await p.addInitScript(()=>{localStorage.setItem('ia-arastiran','K');window.claude={use:async()=>null}});await p.goto(U);await p.waitForTimeout(1500);
+  await p.evaluate(async()=>{const rows=[0,1,2].map(i=>({i,ad:'KURGU KİŞİ '+i,kimlik:'2000000000'+i,sirket:false,m:'',kef:[],x:{}}));await Store.savePortfolio('pO',{name:'Kurgu O',importedAt:'2026-11-01T10:00:00Z',count:3},rows);
+    const P=(i,o)=>Object.assign({id:'p'+i,ad:'KURGU KİŞİ '+i,kimlik:'2000000000'+i,rol:'Borçlu',adres:'',haczeAdres:'',levhalar:[],telefonlar:[],src:{}},o);
+    await Store.saveResearch({pid:'pO',idx:0,durum:'devam',persons:[P(0,{adres:'Kurgu Mah. Deneme Sok. No 4',telefonlar:[{id:'t0',tel:'05009998877',gres:'Kurgu Lokantası sahibi olarak görünüyor'}],
+      src:{sosyal:{s:'var',n:'https://instagram.com/kurgu.kisi\nYıldız Pastanesi müdürü olarak çalışıyor\nKurgu Mah. Çiçek Sok. No 9 adresinde paylaşım'},google:{s:'var',n:'Örnekyıldız Ticaret Ltd ortağı'}}})],companies:[{id:'c0',unvan:'ÖRNEKYILDIZ TİCARET LİMİTED ŞİRKETİ',vkn:'1111111111',adres:'',src:{}}],updatedAt:'2026-11-20T10:00:00Z'});
+    await Store.saveResearch({pid:'pO',idx:1,durum:'hacze',persons:[P(1,{telefonlar:[{id:'t1',tel:'0500 999 88 77'}],src:{}})],companies:[],updatedAt:'2026-11-20T10:00:00Z'});
+    await Store.saveResearch({pid:'pO',idx:2,durum:'',persons:[P(2,{src:{}})],companies:[],updatedAt:'2026-11-20T10:00:00Z'})});
+  await p.reload();await p.waitForTimeout(2500);await p.evaluate(()=>document.querySelectorAll('.modal-bg').forEach(x=>x.remove()));
+  await p.evaluate(async()=>{await openPortfolio('pO');showScreen('dosyalar')});await p.waitForTimeout(600);
+  await p.evaluate(()=>agCycle('test'));await p.waitForFunction(()=>!AG.busy,null,{timeout:60000});
+  let r=await p.evaluate(()=>{const a=AG.st.ag.osint;const T=[...AG.tasks.values()].filter(t=>t.ag==='osint'&&!t.done);return {s:a&&a.s,note:a&&a.note,T:T.map(t=>t.txt),al:(AG.st.alerts||[]).filter(x=>/OSINT/.test(x.txt)).map(x=>x.txt)}});
+  ok(r.s==='tamam','OSINT ajanı turu tamamladı',r);
+  ok(/3 açık kaynak notu okundu/.test(r.note)&&/doğrulandı/.test(r.note),'Ajan notu: okunan kaynak ve bulgu/doğrulama sayıları',r.note);
+  ok(r.T.length===2&&r.T.some(t=>/Yıldız Pastanesi/.test(t))&&r.T.some(t=>/Kurgu Lokantası/.test(t))&&!r.T.some(t=>/Örnekyıldız/.test(t)),'Doğrulanmamış işyeri ipuçları için görev açıldı; MERSİS ile doğrulanan için açılmadı',r.T);
+  ok(r.al.length===1&&/1 telefon/.test(r.al[0]),'Çapraz kontrol: aynı numara farklı TCKN’li föyde → yalnız uyarı (eşleştirme yok)',r.al);
+  await p.evaluate(()=>{select(0);S.tab='kisi';S.pTabs=S.pTabs||{};S.pTabs['p0']='ist';renderCard()});await p.waitForTimeout(400);
+  r=await p.evaluate(()=>{const bx=document.querySelector('#cardPane .os-box');if(!bx)return null;return {items:[...bx.querySelectorAll('.os-i')].map(li=>({k:li.querySelector('.os-k').textContent,v:li.querySelector('.os-v').textContent,m:li.querySelector('.os-m').textContent,cls:li.className})),link:bx.querySelector('.os-v a')&&bx.querySelector('.os-v a').getAttribute('href')}});
+  ok(r&&r.items.length>=5,'Föyün istihbarat bölümünde OSINT bulguları listeleniyor',r);
+  const it=k=>r.items.find(x=>x.v.includes(k))||{};
+  ok(/doğrulandı/.test(it('Örnekyıldız').m)&&/MERSİS okuyucu/.test(it('Örnekyıldız').m)&&/run_mersis_/.test(it('Örnekyıldız').m)&&/Güven: Yüksek/.test(it('Örnekyıldız').m),'MERSİS kaydıyla örtüşen işyeri: doğrulandı, yüksek güven, dayanak ajan + görev kimliği',it('Örnekyıldız'));
+  ok(/doğrulanmadı/.test(it('Yıldız Pastanesi').m)&&/Kaynak: Sosyal medya/.test(it('Yıldız Pastanesi').m),'Karşılığı olmayan işyeri: doğrulanmadı (kesin gösterilmiyor), kaynak belirtiliyor',it('Yıldız Pastanesi'));
+  ok(/kısmen doğrulandı/.test(it('Çiçek Sok').m),'Adres ipucu föydeki adresle ortak bölgede: kısmen doğrulandı',it('Çiçek Sok'));
+  ok(r.link==='https://instagram.com/kurgu.kisi'&&/Instagram/.test(it('instagram').k),'Profil bağlantısı platformuyla gösteriliyor (yalnız tıklanınca açılır)',r.link);
+  ok(/Telefon Google sonucu/.test(it('Kurgu Lokantası').m),'Telefon Google sonucu da kaynak olarak okunuyor');
+  /* ofis profilinden araştırma modülüne */
+  await p.evaluate(()=>{showScreen('mts');MTS.tab='ag';renderMts()});await p.waitForTimeout(500);
+  await p.evaluate(()=>{AG.view=AG.view||{};});
+  const prof=await p.evaluate(()=>aoProfileHTML('osint'));ok(/data-osmod="osint"/.test(prof)&&/OSINT bulgusu olan föyler/.test(prof),'OSINT ajanı profilinde “Sonuçları araştırma modülünde aç”',prof.slice(0,200));
+  await p.evaluate(()=>{const d=document.createElement('div');d.innerHTML=aoProfileHTML('osint');document.body.appendChild(d)});await p.click('[data-osmod="osint"]');await p.waitForTimeout(600);
+  r=await p.evaluate(()=>({scr:S.screen,n:S.filtered.map(d=>d.i),ban:document.getElementById('osF')&&document.getElementById('osF').textContent}));
+  ok(r.scr==='dosyalar'&&r.n.join()==='0'&&/OSINT ajanı/.test(r.ban),'Föy listesi OSINT bulgusu olan föylerle açılıyor; hangi ajanın filtresi olduğu yazıyor',r);
+  await p.evaluate(()=>agOpenModule('gib'));await p.waitForTimeout(300);ok(await p.evaluate(()=>S.fGibK==='faal'&&!S.fOsint),'GİB ajanı → GİB faal filtresi (önceki ajan filtresi temizleniyor)');
+  await p.click('[data-osfx]');await p.waitForTimeout(300);ok(await p.evaluate(()=>S.filtered.length===3&&!document.getElementById('osF')&&!S.fGibK),'“Kaldır” ile tüm föyler geri geliyor');
+  ok(await p.evaluate(()=>{const P=document.createElement('div');return AO_DEPS.find(d=>d.k==='osint').ag.includes('osint')&&!!AO_SCOPE.osint}),'Ofiste OSINT bölümünün masasında OSINT ajanı var, yetki kapsamı tanımlı');
+  ok(!ext.length,'Dış sisteme hiçbir istek gönderilmedi (yazı tipi / kütüphane dosyaları hariç)',ext.slice(0,5));
+  ok(!errs.length,'Sayfa hatası yok',errs);console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);await b.close();srv.close();process.exit(fail?1:0)})().catch(e=>{console.error(e);process.exit(2)});

@@ -1,0 +1,6 @@
+# Test bağımlılıkları ve üretilen dosyalar
+tests/node_modules/
+tests/node_modules_3d
+tests/package-lock.json
+tests/fxhx/
+*.png
