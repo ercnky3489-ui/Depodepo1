@@ -55,6 +55,11 @@ const APP=path.resolve(process.argv[2]||'../out55.html');let pass=0,fail=0;const
   r=await p.evaluate(()=>({b:document.querySelector('.mb-burst').textContent,saved:(S.media.get(S.sel)||[]).filter(m=>m.src==='saha').map(m=>m.label),sheet:!!document.getElementById('mbPh'),gal:document.querySelectorAll('#mbOv .sf-gal figure').length,log:(getR(S.sel).log||[]).some(l=>/3 adet · Kapı/.test(l.m))}));
   ok(r.saved.length===3&&r.saved.every(l=>l==='Saha · Kapı')&&/3 fotoğraf föye kaydedildi/.test(r.b)&&!r.sheet&&r.gal===3&&r.log,'Kaydet: 3 fotoğraf föye yazıldı, kısa onay animasyonu çıktı, galeri güncellendi',r);
   await p.waitForTimeout(1900);ok(await p.evaluate(()=>!document.querySelector('.mb-burst')),'Animasyon kısa sürüp kayboluyor');
+  await p.setInputFiles('#mbOv #mbPhCam',[{name:'e.png',mimeType:'image/png',buffer:png}]);await p.waitForSelector('#mbPh #mbPhCam',{state:'attached'});
+  await p.setInputFiles('#mbPh #mbPhCam',[{name:'f.png',mimeType:'image/png',buffer:png}]);await p.waitForTimeout(400);
+  r=await p.evaluate(()=>({n:document.querySelectorAll('#mbPh figure').length,cam:document.querySelector('#mbPh #mbPhCam').getAttribute('capture'),btn:document.querySelector('#mbPh .mb-phs-save').textContent}));
+  ok(r.n===2&&r.cam==='environment'&&/Kaydet \(2\)/.test(r.btn),'“Fotoğraf çek” → “Bir fotoğraf daha çek”: kamera art arda açılıyor, fotoğraflar birikip tek Kaydet’le kaydediliyor',r);
+  await p.click('#mbPh [data-mbph="cancel"]');await p.waitForTimeout(200);
   await p.click('#mbOv [data-mbz="sonraki"]');await p.waitForTimeout(500);ok(await p.evaluate(()=>MB.ov==='ziyaret'&&MB.z.i===1&&S.sel===1&&!document.getElementById('sfNote').value),'“Sonraki föy” listedeki sonraki föyün saha ekranını açıyor');
   await p.click('#mbOv [data-mbz="foy"]');await p.waitForTimeout(700);
   r=await p.evaluate(()=>({ov:MB.ov,scr:S.screen,sel:S.sel,tab:S.tab,kart:!!document.querySelector('#cardPane .mb-kart'),tacc:document.getElementById('tacc')?getComputedStyle(document.getElementById('tacc')).display:'yok'}));

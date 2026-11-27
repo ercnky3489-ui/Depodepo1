@@ -18,7 +18,7 @@ const APP=path.resolve(process.argv[2]||'../out55.html');const TH=path.join(__di
   await p.evaluate(()=>{localStorage.removeItem('ia-ofis-mod');showScreen('mts');MTS.tab='ag';AG.view.m='ofis';renderMts()});
   await p.waitForFunction(()=>AO.r&&AO.canvas&&AO.canvas.isConnected&&AO.on,null,{timeout:60000});await p.waitForTimeout(1500);
   let r=await p.evaluate(()=>({desks:AO.desks.length,withAg:AO.desks.filter(d=>d.ag).length,empty:AO.desks.filter(d=>!d.ag).map(d=>d.dep.k),rooms:Object.keys(AO.rooms).length,ags:AO_DEPS.flatMap(d=>d.ag).sort().join(),def:AG_DEF.map(a=>a.k).sort().join()}));
-  ok(r.rooms===9&&r.withAg===21&&r.empty.length===0,'9 alan; 21 ajanın her biri bir masada (Yönetici ajan HQ odasında)',r);
+  ok(r.rooms===11&&r.withAg===21&&r.empty.length===0,'9 bölüm + DJ kabini + pub; 21 ajanın her biri bir masada (Yönetici ajan asma katta)',r);
   ok(r.ags===r.def,'Ofisteki ajan listesi ajan motorunun 21 ajanıyla birebir aynı',r);
   r=await p.evaluate(()=>{AG.st.ag.gib.s='hata';AG.st.ag.gib.err='Kurgu test hatası';aoRefresh(true);const d=AO.desks.find(x=>x.ag==='gib');return {state:d.state,lamp:'#'+d.lamp.material.color.getHexString(),open:aoAg('sahis').open,real:agOpenTasks(t=>t.ag==='sahis').length}});
   ok(r.state==='hata'&&r.lamp==='#ff5a6e','Masa durumu ajan kaydından okunuyor: GİB okuyucu “hata” → kırmızı lamba',r);
