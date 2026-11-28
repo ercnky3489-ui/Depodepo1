@@ -36,6 +36,9 @@ const R1={pid:'pK',idx:1,durum:'',persons:[{id:'p1',ad:'KURGU İKİ',kimlik:'300
     let G=[];try{G=JSON.parse(fs.readFileSync(OF,'utf8'))}catch(e){}const seen=fs.readFileSync(LOG,'utf8').trim().split('\n').map(JSON.parse);
     ok(g.status===0&&G.length===2&&G[0].kaynak==='serper-google'&&G[0].results.length===2&&/Tel: 0212/.test(G[0].results[0].snippet)&&G[0].results.every(x=>/^https:/.test(x.url))&&!G[1].results.length,'Serper: Google sonuçları + işletme kaydındaki telefon alınıyor, güvensiz bağlantı atıldı, boş hedef “sonuç yok”',{st:g.status,G,err:g.stderr});
     ok(seen.length===3&&seen.every(x=>x.key==='anahtar'&&x.J.gl==='tr'&&x.J.hl==='tr')&&seen[2].J.q==='"05551110000"','Serper isteği: Türkiye (gl=tr, hl=tr), anahtar yer tutucu, boş çıkan numara ikinci biçimle arandı',seen.map(x=>x.J.q));sp.kill()}
+  {const AF=path.join(EXP,'osint_web','_ayar.json');const A0=fs.readFileSync(AF,'utf8');wj(AF,Object.assign(JSON.parse(A0),{maxTel:0,yeniden:Date.now()+1000}));
+    const H1=JSON.parse(run('web-liste',EXP)).hedefler,H2=JSON.parse(run('web-liste',EXP,'--hepsi')).hedefler;
+    ok(!H1.some(h=>h.kind==='tel')&&!H2.some(h=>h.kind==='tel')&&H2.some(h=>h.kind==='sirket'),'Telefon sınırı 0: hiçbir telefon aranmıyor (hepsini yeniden ara dahil); şirketler aranıyor',{H1:H1.map(h=>h.id),H2:H2.map(h=>h.id)});fs.writeFileSync(AF,A0)}
   /* Gemini (Google arama) — sahte Gemini sunucusu ayrı süreçte (çalıştırıcı eşzamanlı curl kullanır): anahtar yer tutucu, gerçek kaynaklar alınır, “SONUÇ YOK” → boş, 401 → web aramasına geçiş */
   {const LOG=path.join(W,'gseen.jsonl'),F401=path.join(W,'g401');
     const SRV=`const http=require('http'),fs=require('fs');http.createServer((q,r)=>{let b='';q.on('data',d=>b+=d).on('end',()=>{const J=JSON.parse(b);const t=J.contents[0].parts[0].text;fs.appendFileSync(${JSON.stringify(LOG)},JSON.stringify({key:q.headers['x-goog-api-key'],t,tools:J.tools})+'\\n');

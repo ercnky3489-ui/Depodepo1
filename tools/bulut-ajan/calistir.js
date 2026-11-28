@@ -71,7 +71,7 @@ function karsilastir(a,b){const A=JSON.parse(fs.readFileSync(a,'utf8')),B=JSON.p
 const webRd=f=>{try{return JSON.parse(fs.readFileSync(f,'utf8'))}catch(e){return null}};
 const webTel=s=>{const d=String(s||'').replace(/\D/g,'');return d.length>=10?d.slice(-10):''};
 const webFmt=d=>'0'+d.slice(0,3)+' '+d.slice(3,6)+' '+d.slice(6,8)+' '+d.slice(8);
-function webAyar(exp){const a=webRd(path.join(exp,'osint_web','_ayar.json'))||{};return {on:a.on===true,maxTel:Math.min(200,+a.maxTel||25),maxCo:Math.min(200,+a.maxCo||15),cx:String(a.cx||'').replace(/[^\w:-]/g,'').slice(0,80),model:String(a.model||'').replace(/[^\w.-]/g,'').slice(0,60),yeniden:+a.yeniden||0}}
+function webAyar(exp){const a=webRd(path.join(exp,'osint_web','_ayar.json'))||{};return {on:a.on===true,maxTel:(a.maxTel===0||a.maxTel==='0')?0:Math.min(200,+a.maxTel||25),maxCo:(a.maxCo===0||a.maxCo==='0')?0:Math.min(200,+a.maxCo||15),cx:String(a.cx||'').replace(/[^\w:-]/g,'').slice(0,80),model:String(a.model||'').replace(/[^\w.-]/g,'').slice(0,60),yeniden:+a.yeniden||0}}
 /* Daha önce sorgulanan hiçbir hedef yeniden aranmaz:
    - telefon: numara (son 10 hane) bir kez; föyde “sorgulandı” (gs) ya da osint_web’de herhangi bir belgesi (onay / eklendi / red / sonuç yok) varsa atlanır.
    - şirket: VKN varsa VKN’ye, yoksa sadeleştirilmiş ünvana göre tek hedef (tüm föyler tek öneride); osint_web’de aynı VKN / ünvanla belge varsa
@@ -109,7 +109,7 @@ function webListe(exp,hepsi){const A=webAyar(exp);if(!A.on)return {acik:false,he
       C.get(key).refs.push({pid:R.pid,i:R.idx,entId:c.id||''})})}
   for(const [id,t] of [...T.entries()])if(Q.tel.has(t.tel))T.delete(id);
   const cos=[...C.values()].filter(c=>!c._k.some(k=>Q.co.has(k)||notlu.has(k))&&(A.yeniden||!fs.existsSync(path.join(wdir,c.id+'.json')))).map(c=>{const o=Object.assign({},c);delete o._k;if(A.yeniden)o.id=yeniId(o.id);return o});
-  const mt=hepsi?1e9:A.maxTel,mc=hepsi?1e9:A.maxCo;return {acik:true,cx:A.cx,hedefler:[...[...T.values()].slice(0,mt),...cos.slice(0,mc)]}}
+  const mt=A.maxTel===0?0:hepsi?1e9:A.maxTel,mc=A.maxCo===0?0:hepsi?1e9:A.maxCo;return {acik:true,cx:A.cx,hedefler:[...[...T.values()].slice(0,mt),...cos.slice(0,mc)]}}
 /* Serper.dev (Google sonuçları, Türkiye: gl=tr hl=tr) — birinci arama kaynağı. Anahtar yer tutucu; ağ vekili X-API-KEY başlığına gerçeğini ekler.
    node calistir.js serper-ara <disari_aktarim> <web_liste.json> <web_sonuc.json>  → 0 tamam · 5 anahtar yok/yetkisiz · 6 kredi/kota bitti (kalanlar web_kalan.json) */
 function serperTek(q){const url=(process.env.SERPER_URL||'https://google.serper.dev')+'/search';const body=JSON.stringify({q,gl:'tr',hl:'tr',num:10});
